@@ -1515,10 +1515,10 @@ async function signOutCloud(){
 }
 function showAppUI(){
   // вход в UI прораба: показываем таб-бар, прячем экран РП, активна вкладка «Прораб»
-  currentTab='foreman';
+  currentTab=localStorage.getItem('gamzatov_active_tab')||'foreman';
   var pm=document.getElementById('pmScreen'); if(pm) pm.classList.add('hidden');
   var tb=document.getElementById('tabBar'); if(tb) tb.classList.remove('hidden');
-  setActiveTabUI('foreman');
+  setActiveTabUI(currentTab);
   if (STATE.activeId && activeProject()) renderProject(); else renderHome();
 }
 // ====== ТАБ-БАР / МОДУЛИ ======
@@ -1526,7 +1526,7 @@ let currentTab = 'foreman';
 function setActiveTabUI(tab){
   document.querySelectorAll('.tab-item').forEach(function(el){ el.classList.toggle('active', el.dataset.tab===tab); });
 }
-function setTab(tab){
+function setTab(tab){ localStorage.setItem('gamzatov_active_tab', tab);
   if(tab==='pm'){
     currentTab='pm';
     document.getElementById('authScreen').classList.add('hidden');
