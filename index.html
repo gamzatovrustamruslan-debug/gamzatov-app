@@ -1786,7 +1786,7 @@ function renderStagesBlock(proj){
         '<select class="stage-status-sel" data-si="'+i+'" data-field="status" onchange="onStageInput(this)">'+stSel+'</select>' +
         (shift?'<span class="stage-shift-badge '+shiftCls+'">'+shift+'</span>':'')+
         '<button class="stage-del-btn" onclick="deleteStage('+i+')">✕</button>'+
-        '<button class="signals-toggle-btn" onclick="toggleStageSignals(''+proj.id+'','+i+',this)">📊</button>' +
+        '<button class="signals-toggle-btn" data-pid="'+proj.id+'" data-si="'+i+'" onclick="onSigBtn(this)">📊</button>' +
       '</div>' +
       '<div class="stage-dates">' +
         '<div class="stage-date-group"><div class="stage-date-label">📋 План начало</div><input class="stage-date-inp" value="'+planS+'" placeholder="дд.мм.гггг" data-si="'+i+'" data-field="planStart" oninput="onStageInput(this)"></div>' +
@@ -1977,6 +1977,12 @@ function toggleStageSignals(projId, stageIdx, btn){
     if(btn) btn.textContent = '✖ Сигналы';
   }
 }
+function onSigBtn(btn){
+  var pid = btn.dataset.pid;
+  var si = parseInt(btn.dataset.si);
+  toggleStageSignals(pid, si, btn);
+}
+
 
 function renderSignalsInContainer(proj, stageIdx, container){
   var stage = proj.stages[stageIdx];
@@ -2055,15 +2061,14 @@ function getProjectStagesSummary(proj){
 }
 
 function renderChief(){
-  const body = document.getElementById('chiefContent');
+  var body = document.getElementById('chiefContent');
   if(!body) return;
-  const state = (typeof STATE!=='undefined'&&STATE&&STATE.projects)?STATE:loadState()||{};
+  var state = (typeof STATE!=='undefined'&&STATE&&STATE.projects)?STATE:loadState()||{};
   if(!state||!state.projects){ body.innerHTML='<p style="padding:20px;color:#888">Загрузка данных...</p>'; setTimeout(renderChief,1500); return; }
-  const projects = state.projects||[];
-  const managers = state.managers||[];
+  var projects = state.projects||[];
+  var managers = state.managers||[];
 
-  // Считаем сводку
-  let cntRed=0, cntYellow=0, cntGreen=0, cntNone=0;
+  var cntRed=0, cntYellow=0, cntGreen=0, cntNone=0;
   projects.forEach(function(p){
     var t = getProjectTraffic(p);
     if(t==='red') cntRed++;
@@ -2072,24 +2077,20 @@ function renderChief(){
     else cntNone++;
   });
 
-  // Сортируем: red → yellow → none → green
-  const sorted = projects.slice().sort(function(a,b){
-    const order = {'red':0,'yellow':1,'none':2,'green':3};
-    return (order[getProjectTraffic(a)]||2) - (order[getProjectTraffic(b)]||2);
+  var sorted = projects.slice().sort(function(a,b){
+    var order={'red':0,'yellow':1,'none':2,'green':3};
+    return (order[getProjectTraffic(a)]||2)-(order[getProjectTraffic(b)]||2);
   });
 
   var html = '<div class="chief-v2-wrap">';
-
-  // Tiles summary
   html += '<div class="chief-v2-summary">';
   html += '<div class="chief-v2-tile"><div class="tile-num">'+projects.length+'</div><div class="tile-label">Всего объектов</div></div>';
   html += '<div class="chief-v2-tile red"><div class="tile-num">'+cntRed+'</div><div class="tile-label">🔴 Проблемных</div></div>';
-  html += '<div class="chief-v2-tile yellow"><div class="tile-num">'+cntYellow+'</div><div class="tile-label">🟡 Требуют внимания</div></div>';
+  html += '<div class="chief-v2-tile yellow"><div class="tile-num">'+cntYellow+'</div><div class="tile-label">🟡 Внимание</div></div>';
   html += '<div class="chief-v2-tile green"><div class="tile-num">'+cntGreen+'</div><div class="tile-label">🟢 В норме</div></div>';
-  html += '<div class="chief-v2-tile"><div class="tile-num">'+cntNone+'</div><div class="tile-label">⚪ Нет сигналов</div></div>';
+  html += '<div class="chief-v2-tile"><div class="tile-num">'+cntNone+'</div><div class="tile-label">⚪ Нет данных</div></div>';
   html += '</div>';
 
-  // Project cards
   sorted.forEach(function(proj){
     var traffic = getProjectTraffic(proj);
     var emoji = trafficEmoji(traffic);
@@ -2098,34 +2099,26 @@ function renderChief(){
     var mgrName = mgr?(mgr.full_name||mgr.name||''):'—';
     var summary = getProjectSignalSummary(proj);
     var stagesCount = (proj.stages||[]).length;
-
-    // Сдвиг сроков
     var stagesSummary = getProjectStagesSummary(proj);
-    var deadlineInfo = '';
-    if(stagesSummary && stagesSummary.shift){
-      var shiftCls = stagesSummary.shiftDays>0?'color:#c0392b':'color:#27ae60';
-      deadlineInfo = ' <span style="'+shiftCls+';font-size:11px">'+stagesSummary.shift+'</span>';
+    var shiftHtml = '';
+    if(stagesSummary&&stagesSummary.shift){
+      var sc = stagesSummary.shiftDays>0?'color:#c0392b':'color:#27ae60';
+      shiftHtml = ' <span style="'+sc+';font-size:11px">'+escHtml(stagesSummary.shift)+'</span>';
     }
+    var pid = escHtml(proj.id);
+    var cardId = 'chief-proj-'+pid;
 
     html += '<div class="proj-card '+cardCls+'">';
-
-    // Header (clickable)
-    html += '<div class="proj-card-header" onclick="toggleProjCard('chief-proj-'+escHtml(proj.id)+'')">';
+    html += '<div class="proj-card-header" data-toggle="'+cardId+'" onclick="onChiefToggle(this)">';
     html += '<span class="proj-card-traffic">'+emoji+'</span>';
-    html += '<div><div class="proj-card-title">'+(proj.id?'#'+proj.id+' ':'')+escHtml(proj.name||proj.address||'Объект')+'</div>';
-    html += '<div class="proj-card-subtitle">'+escHtml(proj.address||'')+(mgrName?' · РП: '+escHtml(mgrName):'')+deadlineInfo+'</div></div>';
-    html += '<div class="proj-card-counts">';
-    html += '<span>'+summary.green+'🟢</span><span>'+summary.yellow+'🟡</span><span>'+summary.red+'🔴</span>';
-    html += '<span style="color:#999;margin-left:4px">'+stagesCount+' эт.</span>';
-    html += '</div>';
+    html += '<div><div class="proj-card-title">'+(proj.id?'#'+pid+' ':'')+escHtml(proj.name||proj.address||'Объект')+'</div>';
+    html += '<div class="proj-card-subtitle">'+escHtml(proj.address||'')+(mgrName?' · РП: '+escHtml(mgrName):'')+shiftHtml+'</div></div>';
+    html += '<div class="proj-card-counts"><span>'+summary.green+'🟢</span><span>'+summary.yellow+'🟡</span><span>'+summary.red+'🔴</span><span style="color:#999;margin-left:4px">'+stagesCount+' эт.</span></div>';
     html += '<span style="margin-left:auto;color:#aaa;font-size:12px">▼</span>';
     html += '</div>';
 
-    // Body (collapsed by default)
-    html += '<div class="proj-card-body" id="chief-proj-'+escHtml(proj.id)+'">';
-
-    // Key signals row
-    if(summary.keySignals.length > 0){
+    html += '<div class="proj-card-body" id="'+cardId+'">';
+    if(summary.keySignals.length>0){
       html += '<div style="margin-bottom:6px"><b style="font-size:12px">Ключевые:</b> ';
       summary.keySignals.forEach(function(ks){
         var bCls = ks.status==='red'?'ks-red':ks.status==='yellow'?'ks-yellow':'ks-green';
@@ -2133,54 +2126,67 @@ function renderChief(){
       });
       html += '</div>';
     }
-    // Hot red signals
-    if(summary.hotRed.length > 0){
+    if(summary.hotRed.length>0){
       html += '<div class="hot-red-row">🚨 Горящие: ';
       summary.hotRed.slice(0,5).forEach(function(hr){
         html += '<b>'+escHtml(hr.label)+'</b> ['+escHtml(hr.stageName)+'] ';
       });
       html += '</div>';
     }
-    // No signals hint
-    if(!Array.isArray(proj.stages)||proj.stages.length===0){
-      html += '<div style="color:#999;font-size:12px;padding:4px 0">Этапы не добавлены. Откройте объект в Прорабе для добавления этапов.</div>';
+    if(!stagesCount){
+      html += '<div style="color:#999;font-size:12px;padding:4px 0">Этапы не добавлены. Откройте объект в Прорабе.</div>';
     }
 
-    // Stage cards (level 2)
-    (proj.stages||[]).forEach(function(stage, si){
+    (proj.stages||[]).forEach(function(stage,si){
       var st = getStageTraffic(stage);
       var stEmoji = trafficEmoji(st);
       var scCls = st==='red'?'sc-red':st==='yellow'?'sc-yellow':st==='green'?'sc-green':'';
       var sigCount = (stage.signals||[]).length;
       var stRed = (stage.signals||[]).filter(function(s){return s.status==='red';}).length;
       var stGreen = (stage.signals||[]).filter(function(s){return s.status==='green';}).length;
+      var stageCardId = 'chief-stage-'+pid+'-'+si;
 
       html += '<div class="stage-card '+scCls+'">';
-      html += '<div class="stage-card-hdr" onclick="toggleStageCard('chief-stage-'+escHtml(proj.id)+'-'+si+'')">';
+      html += '<div class="stage-card-hdr" data-toggle="'+stageCardId+'" onclick="onChiefToggle(this)">';
       html += '<span>'+stEmoji+'</span>';
       html += '<b style="font-size:13px">'+escHtml(stage.name||('Этап '+(si+1)))+'</b>';
       if(sigCount>0) html += '<span style="font-size:11px;color:#888;margin-left:6px">'+stGreen+'🟢 '+stRed+'🔴</span>';
-      if(sigCount===0) html += '<button class="sc-init-btn" onclick="event.stopPropagation();initAndShowSignals(''+escHtml(proj.id)+'','+si+')">+ Инициализировать сигналы</button>';
+      if(sigCount===0) html += '<button class="sc-init-btn" data-pid="'+pid+'" data-si="'+si+'" onclick="event.stopPropagation();onInitSignals(this)">+ Инициализировать сигналы</button>';
       html += '<span style="margin-left:auto;color:#aaa;font-size:11px">▼</span>';
       html += '</div>';
 
-      // Stage body - signals level 3
-      html += '<div class="stage-card-body" id="chief-stage-'+escHtml(proj.id)+'-'+si+'">';
+      html += '<div class="stage-card-body" id="'+stageCardId+'">';
       if(sigCount===0){
-        html += '<div style="padding:8px 12px;color:#888;font-size:12px">Сигналы не инициализированы. Нажмите кнопку выше.</div>';
+        html += '<div style="padding:8px 12px;color:#888;font-size:12px">Нажмите кнопку выше для инициализации.</div>';
       } else {
-        html += renderSignalsTable(proj, si);
+        html += renderSignalsTable(proj,si);
       }
       html += '</div>';
-      html += '</div>'; // stage-card
+      html += '</div>';
     });
 
-    html += '</div>'; // proj-card-body
-    html += '</div>'; // proj-card
+    html += '</div>';
+    html += '</div>';
   });
 
-  html += '</div>'; // chief-v2-wrap
+  html += '</div>';
   body.innerHTML = html;
+}
+
+function onChiefToggle(el){
+  var id = el.dataset.toggle;
+  if(!id) return;
+  var target = document.getElementById(id);
+  if(target) target.classList.toggle('open');
+}
+function onInitSignals(btn){
+  var pid = btn.dataset.pid;
+  var si = parseInt(btn.dataset.si);
+  var proj = (STATE.projects||[]).find(function(p){return p.id===pid;});
+  if(!proj||!proj.stages||!proj.stages[si]) return;
+  initStageSignals(proj.stages[si]);
+  saveState();
+  renderChief();
 }
 
 function toggleProjCard(id){
