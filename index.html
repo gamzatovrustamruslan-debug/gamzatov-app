@@ -1797,7 +1797,7 @@ function renderChief(){
   const body = document.getElementById('chiefBody');
   const sub = document.getElementById('chiefSub');
   if(!body) return;
-  const state = loadState();
+  const state = (typeof STATE!=='undefined'&&STATE)||loadState()||{};
   const prjs = state.projects||[];
   const mgrs = state.managers||[];
   const now = new Date(); now.setHours(0,0,0,0);
