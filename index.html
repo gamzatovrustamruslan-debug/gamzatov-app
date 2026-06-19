@@ -584,6 +584,51 @@ body:not(.edit-mode) .add-row { display:none; }
 .deadline-fill.warn{background:linear-gradient(90deg,#fb8c00,#ffa726);}
 .deadline-fill.late{background:linear-gradient(90deg,#e53935,#ef5350);}
 .deadline-days{font-size:11px;color:#757575;margin-top:4px;text-align:right;}
+
+/* ===== ЭТАПЫ ===== */
+.stages-wrap{background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+.stages-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.stages-title{font-weight:700;font-size:14px;color:#1a237e;}
+.stages-add-btn{background:#1976D2;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+.stages-add-btn:hover{background:#1565C0;}
+.stage-item{border:1px solid #e3e7ef;border-radius:10px;padding:10px 12px;margin-bottom:8px;position:relative;}
+.stage-item.s-done{border-color:#43a047;background:#f1f8e9;}
+.stage-item.s-active{border-color:#1976D2;background:#e3f2fd;}
+.stage-item.s-late{border-color:#e53935;background:#ffebee;}
+.stage-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.stage-name-inp{flex:1;border:none;background:transparent;font-weight:600;font-size:13px;color:#1a237e;outline:none;}
+.stage-status-sel{border:none;background:transparent;font-size:11px;font-weight:700;cursor:pointer;outline:none;color:#555;}
+.stage-del-btn{background:none;border:none;color:#bbb;font-size:16px;cursor:pointer;padding:0 2px;}
+.stage-del-btn:hover{color:#e53935;}
+.stage-dates{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.stage-date-group{display:flex;flex-direction:column;gap:3px;}
+.stage-date-label{font-size:10px;color:#90a4ae;font-weight:600;text-transform:uppercase;}
+.stage-date-inp{border:1px solid #e0e0e0;border-radius:6px;padding:3px 6px;font-size:12px;width:100%;box-sizing:border-box;}
+.stage-shift-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:auto;}
+.stage-shift-ok{background:#e8f5e9;color:#2e7d32;}
+.stage-shift-late{background:#ffebee;color:#c62828;}
+.stage-progress-bar{height:4px;border-radius:4px;background:#f0f0f0;margin-top:8px;overflow:hidden;}
+.stage-progress-fill{height:100%;border-radius:4px;background:#43a047;}
+
+/* ===== ЧИФ ДАШБОРД — адаптив ===== */
+#chiefScreen{overflow-x:hidden;}
+.chief-dash-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.chief-dash-table th,.chief-dash-table td{padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chief-dash-table th{background:#f8f9ff;font-weight:700;font-size:11px;color:#546e7a;text-transform:uppercase;}
+.chief-dash-table tr:hover td{background:#f5f7ff;}
+.chief-manager-row{background:#e3f2fd!important;font-weight:700;}
+.chief-manager-row td{padding:8px;font-size:13px;color:#1a237e;}
+.cdt-name{width:32%;}
+.cdt-stage{width:18%;}
+.cdt-deadline{width:12%;}
+.cdt-pct{width:10%;}
+.cdt-bw{width:14%;}
+.cdt-bm{width:14%;}
+@media(max-width:600px){
+  .chief-dash-table th,.chief-dash-table td{font-size:10px;padding:4px 4px;}
+  .cdt-name{width:28%;}
+  .cdt-bw,.cdt-bm{width:12%;}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -672,6 +717,17 @@ body:not(.edit-mode) .add-row { display:none; }
     <div id="deadlineBar"></div>
   </div>
 
+  <!-- ЭТАПЫ -->
+  <div id="stagesBlock" class="hidden">
+    <div class="stages-wrap">
+      <div class="stages-header">
+        <span class="stages-title">📋 Этапы проекта</span>
+        <button class="stages-add-btn" onclick="addStage()">+ Добавить этап</button>
+      </div>
+      <div id="stagesList"></div>
+    </div>
+  </div>
+
   <!-- ФИНАНСЫ -->
   <div class="fin-block" id="finBlock">
     <div class="fin-header">💰 Финансы</div>
@@ -754,7 +810,7 @@ body:not(.edit-mode) .add-row { display:none; }
 <nav class="tab-bar hidden" id="tabBar">
   <button class="tab-item active" data-tab="foreman" onclick="setTab('foreman')"><span class="ti-ic">🔨</span>Прораб</button>
   <button class="tab-item" data-tab="pm" onclick="setTab('pm')"><span class="ti-ic">👤</span>РП</button>
-  <button class="tab-item soon" data-tab="chief" onclick="setTab('chief')"><span class="ti-ic">👔</span>Нач-к</button>
+  <button class="tab-item" data-tab="chief" onclick="setTab('chief')"><span class="ti-ic">👔</span>Нач-к</button>
   <button class="tab-item soon" data-tab="tech" onclick="tabSoon()"><span class="ti-ic">🛠️</span>Технадзор</button>
   <button class="tab-item soon" data-tab="master" onclick="tabSoon()"><span class="ti-ic">🧰</span>Мастер</button>
 </nav>
@@ -1639,13 +1695,194 @@ function tabSoon(){ customAlert('Раздел в разработке — ско
 
 // ====== МОДУЛЬ 2: НАЧАЛЬНИК УЧАСТКА ======
 
-function renderChief(){
-  var body = document.getElementById('chiefBody');
-  var sub = document.getElementById('chiefSub');
-  if(!body) return;
+/* ========== ЭТАПЫ — функции ========== */
+const DEFAULT_STAGES = ['Начало работ','Черновой','Чистовой','Мебель и декор'];
 
-  var projs = STATE.projects.filter(function(p){ return !p.archived; });
-  var managers = ensureManagers().filter(function(m){ return m.status !== 'archived'; });
+function renderStagesBlock(proj){
+  const wrap = document.getElementById('stagesBlock');
+  const list = document.getElementById('stagesList');
+  if(!wrap||!list) return;
+  const stages = proj.stages||[];
+  if(stages.length===0 && !proj.dateStart){ wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  if(stages.length===0){ list.innerHTML='<div style="color:#90a4ae;font-size:13px;text-align:center;padding:8px;">Нет этапов — нажмите «+ Добавить этап»</div>'; return; }
+  const now=new Date(); now.setHours(0,0,0,0);
+  list.innerHTML = stages.map((st,i)=>{
+    const ps=parseRuDate(st.planStart), pe=parseRuDate(st.planEnd);
+    const fs=parseRuDate(st.factStart), fe=parseRuDate(st.factEnd);
+    let shift='', shiftCls='', pct=0, itemCls='';
+    if(st.status==='done'){ itemCls='s-done'; }
+    else if(st.status==='active'){ itemCls='s-active'; }
+    if(pe && fe){ const d=Math.round((fe-pe)/86400000); if(d>0){shift='+'+d+'д отставание';shiftCls='stage-shift-late';}else{shift='в срок';shiftCls='stage-shift-ok';} }
+    else if(pe && st.status!=='done'){ const rem=Math.round((pe-now)/86400000); if(rem<0){shift=Math.abs(rem)+'д просрочка';shiftCls='stage-shift-late'; itemCls='s-late';}else if(rem<=3){shiftCls='stage-shift-late';shift=rem+'д осталось';} }
+    if(ps && pe){ const tot=pe-ps; const passed=(st.status==='done'?pe:now)-ps; pct=Math.max(0,Math.min(100,Math.round(passed/tot*100))); }
+    return '<div class="stage-item '+itemCls+'" data-si="'+i+'">' +
+      '<div class="stage-top">' +
+        '<input class="stage-name-inp" value="'+escHtml(st.name||'')+'" placeholder="Название этапа" oninput="stageFieldChange('+i+','name',this.value)">' +
+        '<select class="stage-status-sel" onchange="stageFieldChange('+i+','status',this.value)">' +
+          '<option value="pending"'+(st.status==='pending'?' selected':'')+'>⏳ Не начат</option>' +
+          '<option value="active"'+(st.status==='active'?' selected':'')+'>🔨 Идёт</option>' +
+          '<option value="done"'+(st.status==='done'?' selected':'')+'>✅ Закрыт</option>' +
+        '</select>' +
+        (shift?'<span class="stage-shift-badge '+shiftCls+'">'+shift+'</span>':'')+
+        '<button class="stage-del-btn" onclick="deleteStage('+i+')">✕</button>' +
+      '</div>' +
+      '<div class="stage-dates">' +
+        '<div class="stage-date-group"><div class="stage-date-label">📋 План начало</div><input class="stage-date-inp" value="'+(st.planStart||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+','planStart',this.value)"></div>' +
+        '<div class="stage-date-group"><div class="stage-date-label">📋 План конец</div><input class="stage-date-inp" value="'+(st.planEnd||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+','planEnd',this.value)"></div>' +
+        '<div class="stage-date-group"><div class="stage-date-label">✅ Факт начало</div><input class="stage-date-inp" value="'+(st.factStart||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+','factStart',this.value)"></div>' +
+        '<div class="stage-date-group"><div class="stage-date-label">✅ Факт конец</div><input class="stage-date-inp" value="'+(st.factEnd||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+','factEnd',this.value)"></div>' +
+      '</div>' +
+      (pct>0?'<div class="stage-progress-bar"><div class="stage-progress-fill" style="width:'+pct+'%"></div></div>':'')+
+    '</div>';
+  }).join('');
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function addStage(){
+  const proj = activeProject();
+  if(!proj) return;
+  if(!proj.stages) proj.stages=[];
+  proj.stages.push({id:'s'+Date.now(),name:'',status:'pending',planStart:'',planEnd:'',factStart:'',factEnd:''});
+  saveState();
+  renderStagesBlock(proj);
+  scheduleCloudSync(proj);
+}
+
+function deleteStage(idx){
+  const proj = activeProject();
+  if(!proj||!proj.stages) return;
+  proj.stages.splice(idx,1);
+  saveState();
+  renderStagesBlock(proj);
+  scheduleCloudSync(proj);
+}
+
+function stageFieldChange(idx,field,val){
+  const proj = activeProject();
+  if(!proj||!proj.stages||!proj.stages[idx]) return;
+  proj.stages[idx][field]=val;
+  saveState();
+  scheduleCloudSync(proj);
+  // re-render only if date/status changed (for shift calc)
+  if(field==='status'||field.includes('End')||field.includes('Start')){ renderStagesBlock(proj); }
+}
+
+function getProjectStagesSummary(proj){
+  const stages = proj.stages||[];
+  if(!stages.length) return {currentStage: proj.stageLabel||'—', pct:0, shift:0};
+  const now=new Date(); now.setHours(0,0,0,0);
+  let activeS = stages.find(s=>s.status==='active') || stages.find(s=>s.status==='pending') || stages[stages.length-1];
+  const done = stages.filter(s=>s.status==='done').length;
+  const pct = Math.round(done/stages.length*100);
+  // Calculate overall shift
+  let maxShift=0;
+  stages.forEach(st=>{
+    const pe=parseRuDate(st.planEnd), fe=parseRuDate(st.factEnd);
+    if(pe&&fe){ const d=Math.round((fe-pe)/86400000); if(d>maxShift)maxShift=d; }
+    else if(pe&&st.status!=='done'){ const d=Math.round((now-pe)/86400000); if(d>maxShift)maxShift=d; }
+  });
+  return {currentStage: activeS?activeS.name||'—':'—', pct, shift:maxShift};
+}
+
+function renderChief(){
+  const body = document.getElementById('chiefBody');
+  const sub = document.getElementById('chiefSub');
+  if(!body) return;
+  const state = loadState();
+  const prjs = state.projects||[];
+  const mgrs = state.managers||[];
+  const now = new Date(); now.setHours(0,0,0,0);
+
+  function fmtK(n){ if(!n&&n!==0) return '—'; if(Math.abs(n)>=1000000) return (n/1000000).toFixed(1)+'M'; if(Math.abs(n)>=1000) return Math.round(n/1000)+' тыс'; return String(n); }
+  function tlClass(proj){
+    const de=parseRuDate(proj.dateEnd);
+    if(proj.balanceWork<0||proj.balanceMat<0) return 'red';
+    if(de&&de<now) return 'red';
+    if(de){ const rem=Math.round((de-now)/86400000); if(rem<=7) return 'yellow'; }
+    return 'green';
+  }
+  function tlEmoji(c){ return c==='red'?'🔴':c==='yellow'?'🟡':'🟢'; }
+  function daysLeft(proj){ const de=parseRuDate(proj.dateEnd); if(!de) return '—'; const d=Math.round((de-now)/86400000); return d<0?('<span style="color:#e53935;font-weight:700">'+Math.abs(d)+'дн ❗</span>'):d+'дн'; }
+
+  // Build manager groups sorted: red managers first
+  const ownerMgr = {id:'__owner__',full_name:'Рустам Русланович Гамзатов',photo: (mgrs[0]&&mgrs[0].photo)||''};
+  const allMgrs = [ownerMgr,...mgrs.filter(m=>m.id!==mgrs[0]?.id||true)];
+  // Actually use managers list directly
+  const mgrList = state.managers||[];
+  
+  // Get stats
+  let totalRed=0,totalYellow=0,totalGreen=0,totalNeg=0,totalLate=0;
+  prjs.forEach(p=>{ const c=tlClass(p); if(c==='red')totalRed++; else if(c==='yellow')totalYellow++; else totalGreen++; if(p.balanceWork<0||p.balanceMat<0)totalNeg++; const de=parseRuDate(p.dateEnd); if(de&&de<now)totalLate++; });
+
+  sub.textContent='Объектов: '+prjs.length+' | 🔴'+totalRed+' 🟡'+totalYellow+' 🟢'+totalGreen;
+
+  // Group projects by manager, sort red first
+  function projsByMgr(mgrId){
+    const list = prjs.filter(p=>p.managerId===mgrId);
+    return list.sort((a,b)=>{ const ca=tlClass(a),cb=tlClass(b); const ord={red:0,yellow:1,green:2}; return ord[ca]-ord[cb]; });
+  }
+
+  // Summary header
+  let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:2px solid #e3e7ef;margin-bottom:12px;">' +
+    '<div style="flex:1;min-width:100px;background:#ffebee;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#c62828;font-weight:700">ПРОБЛЕМНЫХ</div><div style="font-size:22px;font-weight:900;color:#e53935">'+totalRed+'</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#fff8e1;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#f57f17;font-weight:700">РИСК</div><div style="font-size:22px;font-weight:900;color:#fb8c00">'+totalYellow+'</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#e8f5e9;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#2e7d32;font-weight:700">В НОРМЕ</div><div style="font-size:22px;font-weight:900;color:#43a047">'+totalGreen+'</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#f3e5f5;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#7b1fa2;font-weight:700">ПРОСРОЧЕК</div><div style="font-size:22px;font-weight:900;color:#9c27b0">'+totalLate+'</div></div>' +
+    '</div>';
+
+  // Table per manager
+  const mgrPhoto = m => m.photo ? '<img src="'+m.photo+'" style="width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;">' : '<span style="display:inline-block;width:32px;height:32px;border-radius:50%;background:#1976D2;color:white;text-align:center;line-height:32px;font-weight:700;margin-right:8px;">'+((m.full_name||'?')[0])+'</span>';
+
+  mgrList.forEach(mgr=>{
+    const ps = projsByMgr(mgr.id);
+    if(!ps.length) return;
+    const mgrRed = ps.filter(p=>tlClass(p)==='red').length;
+    html += '<div style="margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:2px solid #1976D2;margin-bottom:4px;">' +
+        mgrPhoto(mgr) +
+        '<span style="font-weight:700;font-size:14px;color:#1a237e;">'+(mgr.full_name||mgr.name||'РП')+'</span>' +
+        (mgrRed>0?'<span style="margin-left:8px;background:#ffebee;color:#e53935;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;">🔴'+mgrRed+' проблем</span>':'') +
+        '<span style="margin-left:auto;font-size:11px;color:#90a4ae;">'+ps.length+' obj.</span>' +
+      '</div>' +
+      '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">' +
+      '<table class="chief-dash-table">' +
+      '<thead><tr>' +
+        '<th class="cdt-name">ОБЪЕКТ</th>' +
+        '<th class="cdt-stage">ЭТАП</th>' +
+        '<th class="cdt-deadline">СРОК</th>' +
+        '<th class="cdt-pct">%</th>' +
+        '<th class="cdt-bw">БАЛ. РАБ</th>' +
+        '<th class="cdt-bm">БАЛ. МАТ</th>' +
+      '</tr></thead><tbody>';
+
+    ps.forEach(p=>{
+      const cl = tlClass(p);
+      const stageSummary = getProjectStagesSummary(p);
+      const bwColor = p.balanceWork<0?'color:#e53935;font-weight:700':'color:#2e7d32;';
+      const bmColor = p.balanceMat<0?'color:#e53935;font-weight:700':'color:#2e7d32;';
+      const pctDisp = stageSummary.pct>0?stageSummary.pct+'%':'0%';
+      html += '<tr style="'+(cl==='red'?'background:#fff5f5':'')+(cl==='yellow'?'background:#fffde7':'')+'">' +
+        '<td class="cdt-name">'+tlEmoji(cl)+' <strong>'+escStr(p.name||p.address||'—')+'</strong><br><span style="font-size:10px;color:#90a4ae;">'+escStr(p.address||'')+'</span></td>' +
+        '<td class="cdt-stage"><span style="font-size:11px;">'+escStr(stageSummary.currentStage)+'</span>'+
+          (stageSummary.shift>0?'<br><span style="font-size:10px;color:#e53935;font-weight:700;">+'+stageSummary.shift+'д</span>':'')+
+        '</td>' +
+        '<td class="cdt-deadline">'+daysLeft(p)+'</td>' +
+        '<td class="cdt-pct">'+pctDisp+'</td>' +
+        '<td class="cdt-bw" style="'+bwColor+'">'+fmtK(p.balanceWork)+'</td>' +
+        '<td class="cdt-bm" style="'+bmColor+'">'+fmtK(p.balanceMat)+'</td>' +
+      '</tr>';
+    });
+
+    html += '</tbody></table></div></div>';
+  });
+
+  body.innerHTML = html;
+}
+
+function escStr(s){ return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 
 function trafficLight(p){
   var bW=p.balanceWork||0,bM=p.balanceMat||0;
@@ -2143,36 +2380,40 @@ function fmtRuDate2(dt){
   return dt.getDate()+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+dt.getFullYear();
 }
 function renderDeadlineBlock(proj){
-  var block=document.getElementById('deadlineBlock');
-  var bar=document.getElementById('deadlineBar');
-  if(!block||!bar) return;
-  var ds=proj.dateStart,de=proj.dateEnd,st=proj.objStatus||'';
-  if(!ds&&!de&&!st){block.classList.add('hidden');return;}
-  block.classList.remove('hidden');
-  var statusLabel={'done':'✅ Сдан','frozen':'❄️ Заморожен','paused':'⏸ Приостановлен','':''}[st]||'';
-  var statusCls={'done':'dl-done','frozen':'dl-frozen','paused':'dl-frozen','':''}[st]||'';
-  var now=new Date();now.setHours(0,0,0,0);
-  var dtStart=parseRuDate(ds),dtEnd=parseRuDate(de);
-  var pct=0,cls='ok',daysLeft=null,lateLabel='';
-  if(dtStart&&dtEnd&&st!=='done'){
-    var total=dtEnd-dtStart,passed=now-dtStart;
-    pct=total>0?Math.min(100,Math.round(passed/total*100)):0;
-    daysLeft=Math.round((dtEnd-now)/(1000*60*60*24));
-    if(daysLeft<0){cls='late';lateLabel='Просрочено: '+Math.abs(daysLeft)+' дн.';
-    } else if(daysLeft<=7){cls='warn';lateLabel='Осталось: '+daysLeft+' дн.';
-    } else {lateLabel='Осталось: '+daysLeft+' дн.';}
-    if(!statusLabel){statusLabel=cls==='late'?'🔴 Просрочен':cls==='warn'?'🟡 Финиш скоро':'🟢 В работе';
-    statusCls=cls==='late'?'dl-late':cls==='warn'?'dl-warn':'dl-ok';}
-  } else if(st==='done'){pct=100;cls='ok';}
-  var dL=(dtStart||dtEnd)?(dtStart?fmtRuDate2(dtStart):'?')+' — '+(dtEnd?fmtRuDate2(dtEnd):'?'):'';
-  bar.innerHTML='<div class="deadline-wrap"><div class="deadline-row"><span class="deadline-title">📅 Сроки</span>'+
-    (statusLabel?'<span class="deadline-status '+statusCls+'">'+statusLabel+'</span>':'')+'</div>'+
-    (dL?'<div class="deadline-dates">'+dL+'</div>':'')+
-    (dtStart&&dtEnd&&st!=='done'?'<div class="deadline-track"><div class="deadline-fill '+cls+'" style="width:'+pct+'%"></div></div><div class="deadline-days">'+pct+'% срока · '+lateLabel+'</div>':'')+
+  const wrap = document.getElementById('deadlineBlock');
+  if(!wrap) return;
+  if(!proj.dateStart && !proj.dateEnd){ wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const now = new Date(); now.setHours(0,0,0,0);
+  const ds = parseRuDate(proj.dateStart);
+  const de = parseRuDate(proj.dateEnd);
+  let pct=0, daysLeft='', cls='ok', statusLabel='', statusCls='dl-ok';
+  const statMap={done:{l:'✅ Сдан',c:'dl-done'},frozen:{l:'❄️ Заморожен',c:'dl-frozen'},paused:{l:'⏸ Приостановлен',c:'dl-frozen'}};
+  if(proj.objStatus && statMap[proj.objStatus]){
+    statusLabel=statMap[proj.objStatus].l; statusCls=statMap[proj.objStatus].c;
+  } else {
+    statusLabel='🟢 В работе'; statusCls='dl-ok';
+  }
+  if(ds && de){
+    const total = de-ds; const passed = now-ds;
+    pct = Math.max(0,Math.min(100,Math.round(passed/total*100)));
+    const rem = Math.round((de-now)/86400000);
+    if(rem<0){ cls='late'; statusLabel='🔴 Просрочен'; statusCls='dl-late'; daysLeft='Просрочен на '+(Math.abs(rem))+' дн.';}
+    else if(rem<=7){ cls='warn'; statusCls='dl-warn'; statusLabel='⚠️ Риск'; daysLeft='Осталось: '+rem+' дн.';}
+    else { daysLeft='Осталось: '+rem+' дн.';}
+  }
+  document.getElementById('deadlineBar').innerHTML =
+    '<div class="deadline-wrap">' +
+    '<div class="deadline-row"><span class="deadline-title">📅 Сроки</span>' +
+    '<span class="deadline-status '+statusCls+'">'+statusLabel+'</span></div>' +
+    (ds&&de?'<div class="deadline-dates">'+fmtRuDate2(ds)+' — '+fmtRuDate2(de)+'</div>':'')+
+    (ds&&de?'<div class="deadline-track"><div class="deadline-fill '+cls+'" style="width:'+pct+'%"></div></div>':'')+
+    (ds&&de?'<div class="deadline-days">'+pct+'% срока · '+daysLeft+'</div>':'')+
     '</div>';
+  renderStagesBlock(proj);
 }
 
-// ====== ФИНАНСЫ — ДВА КОШЕЛЬКА ======
+
 function renderFinBlock(proj){
   if(!proj) return;
   var wi=document.getElementById('finWorkIncome');
