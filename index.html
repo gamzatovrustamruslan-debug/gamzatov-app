@@ -1797,7 +1797,8 @@ function renderChief(){
   const body = document.getElementById('chiefBody');
   const sub = document.getElementById('chiefSub');
   if(!body) return;
-  const state = (typeof STATE!=='undefined'&&STATE)||loadState()||{};
+  const state = (typeof STATE!=='undefined'&&STATE&&STATE.projects)?STATE:loadState()||{};
+  if(!state||!state.projects){ if(body) body.innerHTML='<div style="text-align:center;padding:30px;color:#90a4ae;">⏳ Загрузка данных...</div>'; setTimeout(renderChief,1500); return; }
   const prjs = state.projects||[];
   const mgrs = state.managers||[];
   const now = new Date(); now.setHours(0,0,0,0);
