@@ -553,6 +553,23 @@ body:not(.edit-mode) .add-row { display:none; }
 .red-val { color:#c62828; }
 .warn-val { color:#f57f17; }
 .ok-val { color:#2e7d32; }
+
+/* ====== ФИНАНСЫ ====== */
+.fin-block{background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+.fin-header{font-weight:700;font-size:14px;margin-bottom:10px;color:#212529;}
+.fin-wallets{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fin-wallet{background:#f8f9fa;border-radius:10px;padding:10px;}
+.fin-wallet-title{font-weight:700;font-size:12px;margin-bottom:8px;}
+.work-color{color:#1565C0;}
+.mat-color{color:#6d4c41;}
+.fin-row{display:flex;flex-direction:column;margin-bottom:6px;}
+.fin-row label{font-size:9px;color:#90a4ae;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;}
+.fin-row input{border:1px solid #e0e0e0;border-radius:6px;padding:5px 8px;font-size:13px;font-family:inherit;background:white;width:100%;}
+.fin-row input:focus{outline:none;border-color:#1565C0;}
+.fin-result{font-weight:700;font-size:13px;text-align:right;margin-top:4px;padding-top:6px;border-top:1px solid #e0e0e0;}
+.fin-result.positive{color:#2e7d32;}
+.fin-result.negative{color:#c62828;}
+.fin-result.zero{color:#90a4ae;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -630,6 +647,25 @@ body:not(.edit-mode) .add-row { display:none; }
       <div class="disc-mini"><span>Скидка</span><input type="number" id="pDiscount" value="0" min="0" max="100" step="0.5" oninput="onMetaChange()"><span>%</span></div>
       <div>К оплате: <span class="pay-amount" id="payAmount">0 ₽</span></div>
       <div class="rent-badge good" id="rentBadge">🟢 40%</div>
+    </div>
+  </div>
+
+  <!-- ФИНАНСЫ -->
+  <div class="fin-block" id="finBlock">
+    <div class="fin-header">💰 Финансы</div>
+    <div class="fin-wallets">
+      <div class="fin-wallet">
+        <div class="fin-wallet-title work-color">🔨 Работы</div>
+        <div class="fin-row"><label>Внесено</label><input type="number" id="finWorkIncome" oninput="onFinChange()" placeholder="0" inputmode="numeric"></div>
+        <div class="fin-row"><label>Потрачено</label><input type="number" id="finWorkSpent" oninput="onFinChange()" placeholder="0" inputmode="numeric"></div>
+        <div class="fin-result zero" id="finWorkResult">Остаток: 0 ₽</div>
+      </div>
+      <div class="fin-wallet">
+        <div class="fin-wallet-title mat-color">🧱 Материалы</div>
+        <div class="fin-row"><label>Внесено</label><input type="number" id="finMatIncome" oninput="onFinChange()" placeholder="0" inputmode="numeric"></div>
+        <div class="fin-row"><label>Потрачено</label><input type="number" id="finMatSpent" oninput="onFinChange()" placeholder="0" inputmode="numeric"></div>
+        <div class="fin-result zero" id="finMatResult">Остаток: 0 ₽</div>
+      </div>
     </div>
   </div>
 
@@ -2020,6 +2056,7 @@ function renderProject(){
   document.getElementById('pAddress').value = proj.address || '';
   document.getElementById('pDiscount').value = proj.discount || 0;
   populateManagerSelect(proj);
+  renderFinBlock(proj);
   renderSections(proj);
   recalc();
   updateCalcStatus(proj);
@@ -2053,6 +2090,48 @@ function onMetaChange(){
   document.getElementById('projTitle').textContent = proj.name || 'Объект';
   saveState();
   recalc();
+}
+
+// ====== ФИНАНСЫ — ДВА КОШЕЛЬКА ======
+function renderFinBlock(proj){
+  if(!proj) return;
+  var wi=document.getElementById('finWorkIncome');
+  var ws=document.getElementById('finWorkSpent');
+  var mi=document.getElementById('finMatIncome');
+  var ms=document.getElementById('finMatSpent');
+  if(!wi) return;
+  var fw=proj.finWork||{};
+  var fm=proj.finMat||{};
+  wi.value=fw.income||'';
+  ws.value=fw.spent||'';
+  mi.value=fm.income||'';
+  ms.value=fm.spent||'';
+  updateFinResult(proj);
+}
+function updateFinResult(proj){
+  var fw=proj.finWork||{};
+  var fm=proj.finMat||{};
+  var bW=(Number(fw.income)||0)-(Number(fw.spent)||0);
+  var bM=(Number(fm.income)||0)-(Number(fm.spent)||0);
+  var wrEl=document.getElementById('finWorkResult');
+  var mrEl=document.getElementById('finMatResult');
+  if(wrEl){wrEl.textContent='Остаток: '+money(bW);wrEl.className='fin-result '+(bW>0?'positive':bW<0?'negative':'zero');}
+  if(mrEl){mrEl.textContent='Остаток: '+money(bM);mrEl.className='fin-result '+(bM>0?'positive':bM<0?'negative':'zero');}
+}
+function onFinChange(){
+  var proj=activeProject();
+  if(!proj) return;
+  var wi=Number(document.getElementById('finWorkIncome').value)||0;
+  var ws=Number(document.getElementById('finWorkSpent').value)||0;
+  var mi=Number(document.getElementById('finMatIncome').value)||0;
+  var ms=Number(document.getElementById('finMatSpent').value)||0;
+  proj.finWork={income:wi,spent:ws};
+  proj.finMat={income:mi,spent:ms};
+  proj.balanceWork=wi-ws;
+  proj.balanceMat=mi-ms;
+  updateFinResult(proj);
+  saveState();
+  scheduleCloudSync();
 }
 
 // ====== РЕНДЕР СМЕТЫ ======
