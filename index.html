@@ -570,6 +570,20 @@ body:not(.edit-mode) .add-row { display:none; }
 .fin-result.positive{color:#2e7d32;}
 .fin-result.negative{color:#c62828;}
 .fin-result.zero{color:#90a4ae;}
+
+/* ====== СРОКИ ====== */
+.deadline-wrap{background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+.deadline-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.deadline-title{font-weight:700;font-size:14px;}
+.deadline-status{font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;}
+.dl-ok{background:#e8f5e9;color:#2e7d32;}.dl-warn{background:#fff8e1;color:#f57f17;}.dl-late{background:#ffebee;color:#c62828;}.dl-done{background:#e3f2fd;color:#1565C0;}.dl-frozen{background:#f3e5f5;color:#7b1fa2;}
+.deadline-dates{font-size:11px;color:#90a4ae;margin-bottom:8px;}
+.deadline-track{background:#f0f0f0;border-radius:6px;height:10px;overflow:hidden;}
+.deadline-fill{height:100%;border-radius:6px;}
+.deadline-fill.ok{background:linear-gradient(90deg,#43a047,#66bb6a);}
+.deadline-fill.warn{background:linear-gradient(90deg,#fb8c00,#ffa726);}
+.deadline-fill.late{background:linear-gradient(90deg,#e53935,#ef5350);}
+.deadline-days{font-size:11px;color:#757575;margin-top:4px;text-align:right;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -620,6 +634,9 @@ body:not(.edit-mode) .add-row { display:none; }
       <div class="field"><label>Телефон</label><input type="text" id="pPhone" oninput="onMetaChange()" placeholder="+7 ..."></div>
       <div class="field"><label>Адрес</label><input type="text" id="pAddress" oninput="onMetaChange()" placeholder="Москва, ..."></div>
       <div class="field full"><label>Руководитель проекта (РП)</label><select id="pManager" class="full" onchange="onAssignManager(this.value)"></select></div>
+      <div class="field"><label>Начало работ</label><input type="text" id="pDateStart" oninput="onMetaChange()" placeholder="дд.мм.гггг"></div>
+      <div class="field"><label>Срок сдачи</label><input type="text" id="pDateEnd" oninput="onMetaChange()" placeholder="дд.мм.гггг"></div>
+      <div class="field full"><label>Статус объекта</label><select id="pObjStatus" class="full" onchange="onMetaChange()"><option value="">В работе</option><option value="done">Сдан</option><option value="frozen">Заморожен</option><option value="paused">Приостановлен</option></select></div>
     </div>
   </div>
 
@@ -648,6 +665,11 @@ body:not(.edit-mode) .add-row { display:none; }
       <div>К оплате: <span class="pay-amount" id="payAmount">0 ₽</span></div>
       <div class="rent-badge good" id="rentBadge">🟢 40%</div>
     </div>
+  </div>
+
+  <!-- СРОКИ -->
+  <div id="deadlineBlock" class="hidden">
+    <div id="deadlineBar"></div>
   </div>
 
   <!-- ФИНАНСЫ -->
@@ -1625,14 +1647,14 @@ function renderChief(){
   var projs = STATE.projects.filter(function(p){ return !p.archived; });
   var managers = ensureManagers().filter(function(m){ return m.status !== 'archived'; });
 
-  function trafficLight(p){
-    var bW = p.balanceWork || 0;
-    var bM = p.balanceMat || 0;
-    if(bW < 0 || bM < 0) return 'red';
-    var m = computeMetrics(p);
-    if(m.planMar < 20 && m.totalN > 0) return 'yellow';
-    return 'green';
-  }
+function trafficLight(p){
+  var bW=p.balanceWork||0,bM=p.balanceMat||0;
+  if(bW<0||bM<0) return 'red';
+  if(p.objStatus!=='done'){var dtE2=parseRuDate(p.dateEnd);if(dtE2){var n2=new Date();n2.setHours(0,0,0,0);if(dtE2<n2) return 'red';}}
+  var m=computeMetrics(p);
+  if(m.planMar<20&&m.totalN>0) return 'yellow';
+  return 'green';
+}
 
   function trafficIcon(color){
     if(color==='red') return '🔴';
@@ -1668,7 +1690,7 @@ function renderChief(){
     var marCls = m.planMar < 20 ? 'red-val' : m.planMar < 35 ? 'warn-val' : 'ok-val';
     var bWcls = bW < 0 ? 'red-val' : bW > 0 ? 'ok-val' : '';
     var bMcls = bM < 0 ? 'red-val' : bM > 0 ? 'ok-val' : '';
-    return '<tr onclick="openProject(\'' + p.id + '\')" class="chief-row"><td>' + trafficIcon(light) + '</td><td class="chief-name">' + esc(p.name||'Без названия') + '<br><span class="chief-addr">' + esc(p.address||'') + '</span></td><td class="chief-num">' + pct + '<small>%</small></td><td class="chief-num ' + marCls + '">' + Math.round(m.planMar) + '<small>%</small></td><td class="chief-num ' + bWcls + '">' + moneyShort(bW) + '</td><td class="chief-num ' + bMcls + '">' + moneyShort(bM) + '</td></tr>';
+    var dtE=parseRuDate(p.dateEnd);var now2=new Date();now2.setHours(0,0,0,0);var daysL=dtE?Math.round((dtE-now2)/(1000*60*60*24)):null;var dlCls=p.objStatus==='done'?'ok-val':(daysL===null?'':(daysL<0?'red-val':daysL<=7?'warn-val':''));var dlTxt=p.objStatus==='done'?'✅':(dtE?(daysL<0?'-'+Math.abs(daysL)+'дн':daysL+'дн'):'—');return '<tr onclick="openProject(\'' + p.id + '\')" class="chief-row"><td>' + trafficIcon(light) + '</td><td class="chief-name">' + esc(p.name||'Без названия') + '<br><span class="chief-addr">' + esc(p.address||'') + '</span></td><td class="chief-num ' + dlCls + '">' + dlTxt + '</td><td class="chief-num">' + pct + '<small>%</small></td><td class="chief-num ' + marCls + '">' + Math.round(m.planMar) + '<small>%</small></td><td class="chief-num ' + bWcls + '">' + moneyShort(bW) + '</td><td class="chief-num ' + bMcls + '">' + moneyShort(bM) + '</td></tr>';
   }
 
   function mgrSection(mgr, items){
@@ -1681,7 +1703,7 @@ function renderChief(){
     var rows = items.map(projRow).join('');
     var name = mgr && mgr.full_name ? mgr.full_name : 'Без руководителя';
     var avatar = mgr && mgr.id ? pmAvatar(mgr,'pm-ava-sm') : '<span class="pm-ava-sm" style="background:#ccc">?</span>';
-    return '<div class="chief-section"><div class="chief-mgr-hdr">' + avatar + ' ' + esc(name) + ' ' + badge + '<span class="chief-load">' + load + ' obj.</span></div><table class="chief-table"><thead><tr><th></th><th>Объект</th><th>Закр</th><th>Маржа</th><th>Баланс раб</th><th>Баланс мат</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    return '<div class="chief-section"><div class="chief-mgr-hdr">' + avatar + ' ' + esc(name) + ' ' + badge + '<span class="chief-load">' + load + ' obj.</span></div><table class="chief-table"><thead><tr><th></th><th>Объект</th><th>Срок</th><th>Закр</th><th>Маржа</th><th>Бал. раб</th><th>Бал. мат</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
   var html = '';
@@ -2057,6 +2079,13 @@ function renderProject(){
   document.getElementById('pDiscount').value = proj.discount || 0;
   populateManagerSelect(proj);
   renderFinBlock(proj);
+  var dsEl2=document.getElementById('pDateStart');
+  var deEl2=document.getElementById('pDateEnd');
+  var stEl2=document.getElementById('pObjStatus');
+  if(dsEl2) dsEl2.value=proj.dateStart||'';
+  if(deEl2) deEl2.value=proj.dateEnd||'';
+  if(stEl2) stEl2.value=proj.objStatus||'';
+  renderDeadlineBlock(proj);
   renderSections(proj);
   recalc();
   updateCalcStatus(proj);
@@ -2088,8 +2117,59 @@ function onMetaChange(){
   proj.address = document.getElementById('pAddress').value;
   proj.discount = parseFloat(document.getElementById('pDiscount').value)||0;
   document.getElementById('projTitle').textContent = proj.name || 'Объект';
+  var dsEl=document.getElementById('pDateStart');
+  var deEl=document.getElementById('pDateEnd');
+  var stEl=document.getElementById('pObjStatus');
+  if(dsEl) proj.dateStart=dsEl.value.trim();
+  if(deEl) proj.dateEnd=deEl.value.trim();
+  if(stEl) proj.objStatus=stEl.value;
+  renderDeadlineBlock(proj);
   saveState();
   recalc();
+}
+
+// ====== СРОКИ ======
+function parseRuDate(s){
+  if(!s) return null;
+  var pts=s.trim().split('.');
+  if(pts.length!==3) return null;
+  var d=parseInt(pts[0]),m=parseInt(pts[1])-1,y=parseInt(pts[2]);
+  if(isNaN(d)||isNaN(m)||isNaN(y)) return null;
+  var dt=new Date(y,m,d);
+  return isNaN(dt.getTime())?null:dt;
+}
+function fmtRuDate2(dt){
+  if(!dt) return '—';
+  return dt.getDate()+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+dt.getFullYear();
+}
+function renderDeadlineBlock(proj){
+  var block=document.getElementById('deadlineBlock');
+  var bar=document.getElementById('deadlineBar');
+  if(!block||!bar) return;
+  var ds=proj.dateStart,de=proj.dateEnd,st=proj.objStatus||'';
+  if(!ds&&!de&&!st){block.classList.add('hidden');return;}
+  block.classList.remove('hidden');
+  var statusLabel={'done':'✅ Сдан','frozen':'❄️ Заморожен','paused':'⏸ Приостановлен','':''}[st]||'';
+  var statusCls={'done':'dl-done','frozen':'dl-frozen','paused':'dl-frozen','':''}[st]||'';
+  var now=new Date();now.setHours(0,0,0,0);
+  var dtStart=parseRuDate(ds),dtEnd=parseRuDate(de);
+  var pct=0,cls='ok',daysLeft=null,lateLabel='';
+  if(dtStart&&dtEnd&&st!=='done'){
+    var total=dtEnd-dtStart,passed=now-dtStart;
+    pct=total>0?Math.min(100,Math.round(passed/total*100)):0;
+    daysLeft=Math.round((dtEnd-now)/(1000*60*60*24));
+    if(daysLeft<0){cls='late';lateLabel='Просрочено: '+Math.abs(daysLeft)+' дн.';
+    } else if(daysLeft<=7){cls='warn';lateLabel='Осталось: '+daysLeft+' дн.';
+    } else {lateLabel='Осталось: '+daysLeft+' дн.';}
+    if(!statusLabel){statusLabel=cls==='late'?'🔴 Просрочен':cls==='warn'?'🟡 Финиш скоро':'🟢 В работе';
+    statusCls=cls==='late'?'dl-late':cls==='warn'?'dl-warn':'dl-ok';}
+  } else if(st==='done'){pct=100;cls='ok';}
+  var dL=(dtStart||dtEnd)?(dtStart?fmtRuDate2(dtStart):'?')+' — '+(dtEnd?fmtRuDate2(dtEnd):'?'):'';
+  bar.innerHTML='<div class="deadline-wrap"><div class="deadline-row"><span class="deadline-title">📅 Сроки</span>'+
+    (statusLabel?'<span class="deadline-status '+statusCls+'">'+statusLabel+'</span>':'')+'</div>'+
+    (dL?'<div class="deadline-dates">'+dL+'</div>':'')+
+    (dtStart&&dtEnd&&st!=='done'?'<div class="deadline-track"><div class="deadline-fill '+cls+'" style="width:'+pct+'%"></div></div><div class="deadline-days">'+pct+'% срока · '+lateLabel+'</div>':'')+
+    '</div>';
 }
 
 // ====== ФИНАНСЫ — ДВА КОШЕЛЬКА ======
