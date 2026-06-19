@@ -1716,27 +1716,34 @@ function renderStagesBlock(proj){
     if(pe && fe){ const d=Math.round((fe-pe)/86400000); if(d>0){shift='+'+d+'д отставание';shiftCls='stage-shift-late';}else{shift='в срок';shiftCls='stage-shift-ok';} }
     else if(pe && st.status!=='done'){ const rem=Math.round((pe-now)/86400000); if(rem<0){shift=Math.abs(rem)+'д просрочка';shiftCls='stage-shift-late'; itemCls='s-late';}else if(rem<=3){shiftCls='stage-shift-late';shift=rem+'д осталось';} }
     if(ps && pe){ const tot=pe-ps; const passed=(st.status==='done'?pe:now)-ps; pct=Math.max(0,Math.min(100,Math.round(passed/tot*100))); }
+    const nameVal = escHtml(st.name||'');
+    const planS = st.planStart||'', planE = st.planEnd||'', factS = st.factStart||'', factE = st.factEnd||'';
+    const stSel = function(v){ return ['pending','active','done'].map(s => '<option value="'+s+'"'+(st.status===s?' selected':'')+'>'+{pending:'⏳ Не начат',active:'🔨 Идёт',done:'✅ Закрыт'}[s]+'</option>').join(''); }();
     return '<div class="stage-item '+itemCls+'" data-si="'+i+'">' +
       '<div class="stage-top">' +
-        '<input class="stage-name-inp" value="'+escHtml(st.name||'')+'" placeholder="Название этапа" oninput="stageFieldChange('+i+',\'name\',this.value)">' +
-        '<select class="stage-status-sel" onchange="stageFieldChange('+i+',\'status\',this.value)">' +
-          '<option value="pending"'+(st.status==='pending'?' selected':'')+'>⏳ Не начат</option>' +
-          '<option value="active"'+(st.status==='active'?' selected':'')+'>🔨 Идёт</option>' +
-          '<option value="done"'+(st.status==='done'?' selected':'')+'>✅ Закрыт</option>' +
-        '</select>' +
+        '<input class="stage-name-inp" value="'+nameVal+'" placeholder="Название этапа" data-si="'+i+'" data-field="name" oninput="onStageInput(this)">' +
+        '<select class="stage-status-sel" data-si="'+i+'" data-field="status" onchange="onStageInput(this)">'+stSel+'</select>' +
         (shift?'<span class="stage-shift-badge '+shiftCls+'">'+shift+'</span>':'')+
         '<button class="stage-del-btn" onclick="deleteStage('+i+')">✕</button>' +
       '</div>' +
       '<div class="stage-dates">' +
-        '<div class="stage-date-group"><div class="stage-date-label">📋 План начало</div><input class="stage-date-inp" value="'+(st.planStart||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+',\'planStart\',this.value)"></div>' +
-        '<div class="stage-date-group"><div class="stage-date-label">📋 План конец</div><input class="stage-date-inp" value="'+(st.planEnd||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+',\'planEnd\',this.value)"></div>' +
-        '<div class="stage-date-group"><div class="stage-date-label">✅ Факт начало</div><input class="stage-date-inp" value="'+(st.factStart||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+',\'factStart\',this.value)"></div>' +
-        '<div class="stage-date-group"><div class="stage-date-label">✅ Факт конец</div><input class="stage-date-inp" value="'+(st.factEnd||'')+'" placeholder="дд.мм.гггг" oninput="stageFieldChange('+i+',\'factEnd\',this.value)"></div>' +
+        '<div class="stage-date-group"><div class="stage-date-label">📋 План начало</div><input class="stage-date-inp" value="'+planS+'" placeholder="дд.мм.гггг" data-si="'+i+'" data-field="planStart" oninput="onStageInput(this)"></div>' +
+        '<div class="stage-date-group"><div class="stage-date-label">📋 План конец</div><input class="stage-date-inp" value="'+planE+'" placeholder="дд.мм.гггг" data-si="'+i+'" data-field="planEnd" oninput="onStageInput(this)"></div>' +
+        '<div class="stage-date-group"><div class="stage-date-label">✅ Факт начало</div><input class="stage-date-inp" value="'+factS+'" placeholder="дд.мм.гггг" data-si="'+i+'" data-field="factStart" oninput="onStageInput(this)"></div>' +
+        '<div class="stage-date-group"><div class="stage-date-label">✅ Факт конец</div><input class="stage-date-inp" value="'+factE+'" placeholder="дд.мм.гггг" data-si="'+i+'" data-field="factEnd" oninput="onStageInput(this)"></div>' +
       '</div>' +
       (pct>0?'<div class="stage-progress-bar"><div class="stage-progress-fill" style="width:'+pct+'%"></div></div>':'')+
     '</div>';
   }).join('');
 }
+
+function onStageInput(el){
+  const idx = parseInt(el.dataset.si, 10);
+  const field = el.dataset.field;
+  const val = el.value;
+  stageFieldChange(idx, field, val);
+}
+
 
 function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
