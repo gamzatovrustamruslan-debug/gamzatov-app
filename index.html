@@ -2061,7 +2061,7 @@ function getProjectStagesSummary(proj){
 }
 
 function renderChief(){
-  var body = document.getElementById('chiefContent');
+  var body = document.getElementById('chiefBody');
   if(!body) return;
   var state = (typeof STATE!=='undefined'&&STATE&&STATE.projects)?STATE:loadState()||{};
   if(!state||!state.projects){ body.innerHTML='<p style="padding:20px;color:#888">Загрузка данных...</p>'; setTimeout(renderChief,1500); return; }
