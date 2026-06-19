@@ -629,67 +629,6 @@ body:not(.edit-mode) .add-row { display:none; }
   .cdt-name{width:28%;}
   .cdt-bw,.cdt-bm{width:12%;}
 }
-
-/* === SIGNALS CSS === */
-.signals-wrap{margin-top:8px;border:1px solid #ddd;border-radius:6px;overflow:hidden;}
-.signals-header{background:#f5f5f5;padding:8px 12px;font-size:13px;border-bottom:1px solid #ddd;}
-.signals-table{width:100%;border-collapse:collapse;font-size:13px;}
-.signals-table th{background:#fafafa;padding:6px 8px;text-align:left;font-weight:600;border-bottom:1px solid #e0e0e0;font-size:12px;}
-.signals-table td{padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
-.sig-row.sig-red{background:#fff5f5;}
-.sig-row.sig-yellow{background:#fffdf0;}
-.sig-row.sig-green{background:#f6ffed;}
-.sig-label{font-size:12px;color:#333;}
-.signals-table select{border:1px solid #ddd;border-radius:4px;padding:2px 4px;font-size:14px;background:#fff;cursor:pointer;}
-.sig-comment{width:100%;border:1px solid #e0e0e0;border-radius:4px;padding:3px 6px;font-size:12px;box-sizing:border-box;}
-.sig-comment:focus{outline:none;border-color:#4a90e2;}
-.signals-toggle-btn{background:none;border:1px solid #aaa;border-radius:4px;padding:2px 8px;font-size:12px;cursor:pointer;margin-left:6px;color:#555;}
-.signals-toggle-btn:hover{background:#f0f0f0;}
-/* === CHIEF DASHBOARD 3 LEVELS === */
-.chief-v2-wrap{padding:12px;}
-.chief-v2-summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
-.chief-v2-tile{flex:1;min-width:100px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px 14px;text-align:center;}
-.chief-v2-tile .tile-num{font-size:24px;font-weight:700;}
-.chief-v2-tile .tile-label{font-size:11px;color:#888;margin-top:2px;}
-.chief-v2-tile.red{border-color:#e74c3c;background:#fff5f5;}.chief-v2-tile.red .tile-num{color:#e74c3c;}
-.chief-v2-tile.yellow{border-color:#f39c12;background:#fffdf0;}.chief-v2-tile.yellow .tile-num{color:#f39c12;}
-.chief-v2-tile.green{border-color:#27ae60;background:#f6ffed;}.chief-v2-tile.green .tile-num{color:#27ae60;}
-.proj-card{background:#fff;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;overflow:hidden;}
-.proj-card.pcard-red{border-color:#e74c3c;border-left:4px solid #e74c3c;}
-.proj-card.pcard-yellow{border-color:#f39c12;border-left:4px solid #f39c12;}
-.proj-card.pcard-green{border-color:#27ae60;border-left:4px solid #27ae60;}
-.proj-card-header{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;}
-.proj-card-header:hover{background:#f9f9f9;}
-.proj-card-traffic{font-size:20px;flex-shrink:0;}
-.proj-card-title{font-weight:600;font-size:14px;flex:1;}
-.proj-card-subtitle{font-size:12px;color:#888;}
-.proj-card-counts{font-size:12px;display:flex;gap:6px;flex-wrap:wrap;}
-.proj-card-body{display:none;border-top:1px solid #eee;padding:10px 14px;}
-.proj-card-body.open{display:block;}
-.key-signals-row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
-.ks-badge{display:inline-flex;align-items:center;gap:3px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:2px 7px;font-size:11px;}
-.ks-badge.ks-red{background:#fff5f5;border-color:#e74c3c;color:#c0392b;}
-.ks-badge.ks-yellow{background:#fffdf0;border-color:#f39c12;color:#b7770d;}
-.ks-badge.ks-green{background:#f6ffed;border-color:#27ae60;color:#1e8449;}
-.hot-red-row{margin:4px 0;font-size:12px;color:#c0392b;}
-/* Этапы в дашборде */
-.stage-card{border:1px solid #e8e8e8;border-radius:6px;margin:6px 0;overflow:hidden;}
-.stage-card.sc-red{border-color:#e74c3c;border-left:3px solid #e74c3c;}
-.stage-card.sc-yellow{border-color:#f39c12;border-left:3px solid #f39c12;}
-.stage-card.sc-green{border-color:#27ae60;border-left:3px solid #27ae60;}
-.stage-card-hdr{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;user-select:none;background:#fafafa;}
-.stage-card-hdr:hover{background:#f0f0f0;}
-.stage-card-body{display:none;border-top:1px solid #eee;}
-.stage-card-body.open{display:block;}
-.sc-init-btn{background:#4a90e2;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:12px;cursor:pointer;margin-left:auto;}
-.sc-init-btn:hover{background:#357abd;}
-@media(max-width:600px){
-  .chief-v2-summary{gap:6px;}
-  .chief-v2-tile{min-width:80px;padding:8px 10px;}
-  .signals-table th:nth-child(4),.signals-table td:nth-child(4){display:none;}
-  .proj-card-header{flex-wrap:wrap;}
-}
-/* === END SIGNALS CSS === */
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1785,8 +1724,7 @@ function renderStagesBlock(proj){
         '<input class="stage-name-inp" value="'+nameVal+'" placeholder="Название этапа" data-si="'+i+'" data-field="name" oninput="onStageInput(this)">' +
         '<select class="stage-status-sel" data-si="'+i+'" data-field="status" onchange="onStageInput(this)">'+stSel+'</select>' +
         (shift?'<span class="stage-shift-badge '+shiftCls+'">'+shift+'</span>':'')+
-        '<button class="stage-del-btn" onclick="deleteStage('+i+')">✕</button>'+
-        '<button class="signals-toggle-btn" data-pid="'+proj.id+'" data-si="'+i+'" onclick="onSigBtn(this)">📊</button>' +
+        '<button class="stage-del-btn" onclick="deleteStage('+i+')">✕</button>' +
       '</div>' +
       '<div class="stage-dates">' +
         '<div class="stage-date-group"><div class="stage-date-label">📋 План начало</div><input class="stage-date-inp" value="'+planS+'" placeholder="дд.мм.гггг" data-si="'+i+'" data-field="planStart" oninput="onStageInput(this)"></div>' +
@@ -1805,211 +1743,6 @@ function onStageInput(el){
   const val = el.value;
   stageFieldChange(idx, field, val);
 }
-
-// ===== МОДУЛЬ: СИГНАЛЫ (СВЕТОФОРЫ) =====
-const SIGNAL_DEFS = [
-  {id:1,  label:'Срок этапа задан'},
-  {id:2,  label:'Бюджет этапа задан'},
-  {id:3,  label:'Материалы запланированы'},
-  {id:4,  label:'Материалы завезены'},
-  {id:5,  label:'Мастера на объекте'},
-  {id:6,  label:'Сроки в норме'},
-  {id:7,  label:'Технадзор принял этап'},
-  {id:8,  label:'Акт закрыт'},
-  {id:9,  label:'Продление сроков оформлено'},
-  {id:10, label:'Баланс не в минусе'},
-  {id:11, label:'Маржа не в минусе'},
-  {id:12, label:'Условия на объекте созданы'},
-  {id:13, label:'Фото/видео скрытых работ'},
-  {id:14, label:'Фото/видео выполненных работ'},
-  {id:15, label:'Фото/видео ежедневная'},
-  {id:16, label:'Порядок на объекте'},
-  {id:17, label:'Памятка культуры производства'},
-  {id:18, label:'Закон о тишине соблюдается'}
-];
-const KEY_SIGNAL_IDS = [6,4,5,7,10];
-
-function initStageSignals(stage){
-  if(!Array.isArray(stage.signals)||stage.signals.length===0){
-    stage.signals = SIGNAL_DEFS.map(function(d){
-      return {defId:d.id, checked:false, status:'yellow', comment:''};
-    });
-  } else {
-    // Добавить недостающие сигналы если SIGNAL_DEFS расширили
-    SIGNAL_DEFS.forEach(function(d){
-      if(!stage.signals.find(function(s){return s.defId===d.id;})){
-        stage.signals.push({defId:d.id, checked:false, status:'yellow', comment:''});
-      }
-    });
-  }
-}
-
-function getStageTraffic(stage){
-  if(!stage.signals||stage.signals.length===0) return 'none';
-  var sigs = stage.signals;
-  if(sigs.some(function(s){return s.status==='red';})) return 'red';
-  if(sigs.some(function(s){return s.status==='yellow';})) return 'yellow';
-  return 'green';
-}
-
-function getProjectTraffic(proj){
-  if(!Array.isArray(proj.stages)||proj.stages.length===0) return 'none';
-  var traffics = proj.stages.map(function(st){return getStageTraffic(st);});
-  if(traffics.some(function(t){return t==='red';})) return 'red';
-  if(traffics.some(function(t){return t==='yellow';})) return 'yellow';
-  if(traffics.every(function(t){return t==='green';})) return 'green';
-  return 'none';
-}
-
-function getProjectSignalSummary(proj){
-  var green=0, yellow=0, red=0, keySignals=[], hotRed=[];
-  if(!Array.isArray(proj.stages)) return {green,yellow,red,keySignals,hotRed};
-  proj.stages.forEach(function(st){
-    if(!Array.isArray(st.signals)) return;
-    st.signals.forEach(function(sig){
-      if(sig.status==='green') green++;
-      else if(sig.status==='yellow') yellow++;
-      else if(sig.status==='red') red++;
-      var def = SIGNAL_DEFS.find(function(d){return d.id===sig.defId;});
-      if(!def) return;
-      if(KEY_SIGNAL_IDS.includes(sig.defId)){
-        var existing = keySignals.find(function(k){return k.defId===sig.defId;});
-        if(!existing) keySignals.push({defId:sig.defId, label:def.label, status:sig.status, stageName:st.name||''});
-        else if(sig.status==='red'||(sig.status==='yellow'&&existing.status==='green')) existing.status=sig.status;
-      }
-      if(sig.status==='red' && !KEY_SIGNAL_IDS.includes(sig.defId)){
-        hotRed.push({defId:sig.defId, label:def.label, stageName:st.name||''});
-      }
-    });
-  });
-  return {green, yellow, red, keySignals, hotRed};
-}
-
-function trafficEmoji(t){
-  if(t==='red') return '🔴';
-  if(t==='yellow') return '🟡';
-  if(t==='green') return '🟢';
-  return '⚪';
-}
-function trafficColor(t){
-  if(t==='red') return '#c0392b';
-  if(t==='yellow') return '#f39c12';
-  if(t==='green') return '#27ae60';
-  return '#999';
-}
-
-// Отрисовка сигналов внутри этапа
-function renderSignalsBlock(proj, stageIdx){
-  var stage = proj.stages[stageIdx];
-  if(!stage) return;
-  initStageSignals(stage);
-  var pid = escStr(proj.id);
-  var html = '<div class="signals-wrap">';
-  html += '<div class="signals-header">📊 Точки контроля этапа <b>' + escHtml(stage.name||'') + '</b></div>';
-  html += '<table class="signals-table"><thead><tr><th></th><th>Сигнал</th><th>Статус</th><th>Комментарий</th></tr></thead><tbody>';
-  stage.signals.forEach(function(sig, si){
-    var def = SIGNAL_DEFS.find(function(d){return d.id===sig.defId;}) || {id:sig.defId, label:'Сигнал '+sig.defId};
-    var rowCls = sig.status==='red'?'sig-red':sig.status==='yellow'?'sig-yellow':'sig-green';
-    html += '<tr class="sig-row ' + rowCls + '">';
-    // Галочка
-    html += '<td><input type="checkbox" ' + (sig.checked?'checked':'') + ' data-pid="' + pid + '" data-si="' + stageIdx + '" data-sigi="' + si + '" data-field="checked" onchange="onSignalChange(this)"></td>';
-    // Название
-    html += '<td class="sig-label">' + escHtml(def.label) + '</td>';
-    // Статус
-    html += '<td><select data-pid="' + pid + '" data-si="' + stageIdx + '" data-sigi="' + si + '" data-field="status" onchange="onSignalChange(this)">'
-      + '<option value="green"' + (sig.status==='green'?' selected':'') + '>🟢</option>'
-      + '<option value="yellow"' + (sig.status==='yellow'?' selected':'') + '>🟡</option>'
-      + '<option value="red"' + (sig.status==='red'?' selected':'') + '>🔴</option>'
-      + '</select></td>';
-    // Комментарий
-    html += '<td><input type="text" class="sig-comment" placeholder="Комментарий..." value="' + escHtml(sig.comment||'') + '" data-pid="' + pid + '" data-si="' + stageIdx + '" data-sigi="' + si + '" data-field="comment" onchange="onSignalChange(this)"></td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-
-  var blockId = 'signals-block-' + pid + '-' + stageIdx;
-  var existing = document.getElementById(blockId);
-  if(existing) existing.outerHTML = '<div id="' + blockId + '">' + html + '</div>';
-  else {
-    // Найдём stage-item и добавим в него
-    var stageEl = document.querySelector('[data-stage-idx="' + stageIdx + '"][data-pid="' + pid + '"]');
-    if(stageEl){
-      var bd = stageEl.querySelector('.signals-container');
-      if(bd) bd.innerHTML = '<div id="' + blockId + '">' + html + '</div>';
-    }
-  }
-}
-
-function onSignalChange(el){
-  var pid = el.dataset.pid;
-  var si = parseInt(el.dataset.si);
-  var sigi = parseInt(el.dataset.sigi);
-  var field = el.dataset.field;
-  var val = field==='checked' ? el.checked : el.value;
-  var proj = (STATE.projects||[]).find(function(p){return p.id===pid;});
-  if(!proj||!proj.stages||!proj.stages[si]||!proj.stages[si].signals) return;
-  proj.stages[si].signals[sigi][field] = val;
-  saveState();
-  // Обновить светофор этапа в UI если он есть
-  var trafficEl = document.querySelector('[data-stage-traffic="' + pid + '-' + si + '"]');
-  if(trafficEl){
-    var t = getStageTraffic(proj.stages[si]);
-    trafficEl.textContent = trafficEmoji(t);
-    trafficEl.style.color = trafficColor(t);
-  }
-}
-// ===== КОНЕЦ МОДУЛЯ СИГНАЛОВ =====
-function toggleStageSignals(projId, stageIdx, btn){
-  var containerId = 'sc-'+projId+'-'+stageIdx;
-  var container = document.getElementById(containerId);
-  if(!container) return;
-  var isOpen = container.dataset.open==='1';
-  if(isOpen){
-    container.innerHTML = '';
-    container.dataset.open = '0';
-    if(btn) btn.textContent = '📊';
-  } else {
-    var proj = (STATE.projects||[]).find(function(p){return p.id===projId;});
-    if(!proj) return;
-    initStageSignals(proj.stages[stageIdx]);
-    renderSignalsInContainer(proj, stageIdx, container);
-    container.dataset.open = '1';
-    if(btn) btn.textContent = '✖ Сигналы';
-  }
-}
-function onSigBtn(btn){
-  var pid = btn.dataset.pid;
-  var si = parseInt(btn.dataset.si);
-  toggleStageSignals(pid, si, btn);
-}
-
-
-function renderSignalsInContainer(proj, stageIdx, container){
-  var stage = proj.stages[stageIdx];
-  if(!stage) return;
-  var pid = stage.id || proj.id;
-  var html = '<div class="signals-wrap">';
-  html += '<div class="signals-header">📊 Точки контроля: <b>' + escHtml(stage.name||('Этап '+(stageIdx+1))) + '</b></div>';
-  html += '<table class="signals-table"><thead><tr><th style="width:30px"></th><th>Сигнал</th><th style="width:60px">Статус</th><th>Комментарий</th></tr></thead><tbody>';
-  stage.signals.forEach(function(sig, si){
-    var def = SIGNAL_DEFS.find(function(d){return d.id===sig.defId;}) || {id:sig.defId, label:'Сигнал '+sig.defId};
-    var rowCls = sig.status==='red'?'sig-red':sig.status==='yellow'?'sig-yellow':'sig-green';
-    html += '<tr class="sig-row ' + rowCls + '">';
-    html += '<td><input type="checkbox" ' + (sig.checked?'checked':'') + ' data-pid="' + escHtml(proj.id) + '" data-si="' + stageIdx + '" data-sigi="' + si + '" data-field="checked" onchange="onSignalChange(this)"></td>';
-    html += '<td class="sig-label">' + escHtml(def.label) + '</td>';
-    html += '<td><select data-pid="' + escHtml(proj.id) + '" data-si="' + stageIdx + '" data-sigi="' + si + '" data-field="status" onchange="onSignalChange(this)">'
-      + '<option value="green"' + (sig.status==='green'?' selected':'') + '>🟢</option>'
-      + '<option value="yellow"' + (sig.status==='yellow'?' selected':'') + '>🟡</option>'
-      + '<option value="red"' + (sig.status==='red'?' selected':'') + '>🔴</option>'
-      + '</select></td>';
-    html += '<td><input type="text" class="sig-comment" value="' + escHtml(sig.comment||'') + '" placeholder="Комментарий..." data-pid="' + escHtml(proj.id) + '" data-si="' + stageIdx + '" data-sigi="' + si + '" data-field="comment" onchange="onSignalChange(this)"></td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  container.innerHTML = html;
-}
-
-
 
 
 function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -2061,195 +1794,99 @@ function getProjectStagesSummary(proj){
 }
 
 function renderChief(){
-  var body = document.getElementById('chiefBody');
+  const body = document.getElementById('chiefBody');
+  const sub = document.getElementById('chiefSub');
   if(!body) return;
-  var state = (typeof STATE!=='undefined'&&STATE&&STATE.projects)?STATE:loadState()||{};
-  if(!state||!state.projects){ body.innerHTML='<p style="padding:20px;color:#888">Загрузка данных...</p>'; setTimeout(renderChief,1500); return; }
-  var projects = state.projects||[];
-  var managers = state.managers||[];
+  const state = (typeof STATE!=='undefined'&&STATE&&STATE.projects)?STATE:loadState()||{};
+  if(!state||!state.projects){ if(body) body.innerHTML='<div style="text-align:center;padding:30px;color:#90a4ae;">⏳ Загрузка данных...</div>'; setTimeout(renderChief,1500); return; }
+  const prjs = state.projects||[];
+  const mgrs = state.managers||[];
+  const now = new Date(); now.setHours(0,0,0,0);
 
-  var cntRed=0, cntYellow=0, cntGreen=0, cntNone=0;
-  projects.forEach(function(p){
-    var t = getProjectTraffic(p);
-    if(t==='red') cntRed++;
-    else if(t==='yellow') cntYellow++;
-    else if(t==='green') cntGreen++;
-    else cntNone++;
-  });
+  function fmtK(n){ if(!n&&n!==0) return '—'; if(Math.abs(n)>=1000000) return (n/1000000).toFixed(1)+'M'; if(Math.abs(n)>=1000) return Math.round(n/1000)+' тыс'; return String(n); }
+  function tlClass(proj){
+    const de=parseRuDate(proj.dateEnd);
+    if(proj.balanceWork<0||proj.balanceMat<0) return 'red';
+    if(de&&de<now) return 'red';
+    if(de){ const rem=Math.round((de-now)/86400000); if(rem<=7) return 'yellow'; }
+    return 'green';
+  }
+  function tlEmoji(c){ return c==='red'?'🔴':c==='yellow'?'🟡':'🟢'; }
+  function daysLeft(proj){ const de=parseRuDate(proj.dateEnd); if(!de) return '—'; const d=Math.round((de-now)/86400000); return d<0?('<span style="color:#e53935;font-weight:700">'+Math.abs(d)+'дн ❗</span>'):d+'дн'; }
 
-  var sorted = projects.slice().sort(function(a,b){
-    var order={'red':0,'yellow':1,'none':2,'green':3};
-    return (order[getProjectTraffic(a)]||2)-(order[getProjectTraffic(b)]||2);
-  });
+  // Build manager groups sorted: red managers first
+  const ownerMgr = {id:'__owner__',full_name:'Рустам Русланович Гамзатов',photo: (mgrs[0]&&mgrs[0].photo)||''};
+  const allMgrs = [ownerMgr,...mgrs.filter(m=>m.id!==mgrs[0]?.id||true)];
+  // Actually use managers list directly
+  const mgrList = state.managers||[];
+  
+  // Get stats
+  let totalRed=0,totalYellow=0,totalGreen=0,totalNeg=0,totalLate=0;
+  prjs.forEach(p=>{ const c=tlClass(p); if(c==='red')totalRed++; else if(c==='yellow')totalYellow++; else totalGreen++; if(p.balanceWork<0||p.balanceMat<0)totalNeg++; const de=parseRuDate(p.dateEnd); if(de&&de<now)totalLate++; });
 
-  var html = '<div class="chief-v2-wrap">';
-  html += '<div class="chief-v2-summary">';
-  html += '<div class="chief-v2-tile"><div class="tile-num">'+projects.length+'</div><div class="tile-label">Всего объектов</div></div>';
-  html += '<div class="chief-v2-tile red"><div class="tile-num">'+cntRed+'</div><div class="tile-label">🔴 Проблемных</div></div>';
-  html += '<div class="chief-v2-tile yellow"><div class="tile-num">'+cntYellow+'</div><div class="tile-label">🟡 Внимание</div></div>';
-  html += '<div class="chief-v2-tile green"><div class="tile-num">'+cntGreen+'</div><div class="tile-label">🟢 В норме</div></div>';
-  html += '<div class="chief-v2-tile"><div class="tile-num">'+cntNone+'</div><div class="tile-label">⚪ Нет данных</div></div>';
-  html += '</div>';
+  sub.textContent='Объектов: '+prjs.length+' | 🔴'+totalRed+' 🟡'+totalYellow+' 🟢'+totalGreen;
 
-  sorted.forEach(function(proj){
-    var traffic = getProjectTraffic(proj);
-    var emoji = trafficEmoji(traffic);
-    var cardCls = traffic==='red'?'pcard-red':traffic==='yellow'?'pcard-yellow':traffic==='green'?'pcard-green':'';
-    var mgr = managers.find(function(m){return m.id===proj.managerId;});
-    var mgrName = mgr?(mgr.full_name||mgr.name||''):'—';
-    var summary = getProjectSignalSummary(proj);
-    var stagesCount = (proj.stages||[]).length;
-    var stagesSummary = getProjectStagesSummary(proj);
-    var shiftHtml = '';
-    if(stagesSummary&&stagesSummary.shift){
-      var sc = stagesSummary.shiftDays>0?'color:#c0392b':'color:#27ae60';
-      shiftHtml = ' <span style="'+sc+';font-size:11px">'+escHtml(stagesSummary.shift)+'</span>';
-    }
-    var pid = escHtml(proj.id);
-    var cardId = 'chief-proj-'+pid;
+  // Group projects by manager, sort red first
+  function projsByMgr(mgrId){
+    const list = prjs.filter(p=>p.managerId===mgrId);
+    return list.sort((a,b)=>{ const ca=tlClass(a),cb=tlClass(b); const ord={red:0,yellow:1,green:2}; return ord[ca]-ord[cb]; });
+  }
 
-    html += '<div class="proj-card '+cardCls+'">';
-    html += '<div class="proj-card-header" data-toggle="'+cardId+'" onclick="onChiefToggle(this)">';
-    html += '<span class="proj-card-traffic">'+emoji+'</span>';
-    html += '<div><div class="proj-card-title">'+(proj.id?'#'+pid+' ':'')+escHtml(proj.name||proj.address||'Объект')+'</div>';
-    html += '<div class="proj-card-subtitle">'+escHtml(proj.address||'')+(mgrName?' · РП: '+escHtml(mgrName):'')+shiftHtml+'</div></div>';
-    html += '<div class="proj-card-counts"><span>'+summary.green+'🟢</span><span>'+summary.yellow+'🟡</span><span>'+summary.red+'🔴</span><span style="color:#999;margin-left:4px">'+stagesCount+' эт.</span></div>';
-    html += '<span style="margin-left:auto;color:#aaa;font-size:12px">▼</span>';
-    html += '</div>';
+  // Summary header
+  let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:2px solid #e3e7ef;margin-bottom:12px;">' +
+    '<div style="flex:1;min-width:100px;background:#ffebee;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#c62828;font-weight:700">ПРОБЛЕМНЫХ</div><div style="font-size:22px;font-weight:900;color:#e53935">'+totalRed+'</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#fff8e1;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#f57f17;font-weight:700">РИСК</div><div style="font-size:22px;font-weight:900;color:#fb8c00">'+totalYellow+'</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#e8f5e9;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#2e7d32;font-weight:700">В НОРМЕ</div><div style="font-size:22px;font-weight:900;color:#43a047">'+totalGreen+'</div></div>' +
+    '<div style="flex:1;min-width:100px;background:#f3e5f5;border-radius:10px;padding:8px 12px;text-align:center"><div style="font-size:11px;color:#7b1fa2;font-weight:700">ПРОСРОЧЕК</div><div style="font-size:22px;font-weight:900;color:#9c27b0">'+totalLate+'</div></div>' +
+    '</div>';
 
-    html += '<div class="proj-card-body" id="'+cardId+'">';
-    if(summary.keySignals.length>0){
-      html += '<div style="margin-bottom:6px"><b style="font-size:12px">Ключевые:</b> ';
-      summary.keySignals.forEach(function(ks){
-        var bCls = ks.status==='red'?'ks-red':ks.status==='yellow'?'ks-yellow':'ks-green';
-        html += '<span class="ks-badge '+bCls+'">'+trafficEmoji(ks.status)+' '+escHtml(ks.label)+'</span> ';
-      });
-      html += '</div>';
-    }
-    if(summary.hotRed.length>0){
-      html += '<div class="hot-red-row">🚨 Горящие: ';
-      summary.hotRed.slice(0,5).forEach(function(hr){
-        html += '<b>'+escHtml(hr.label)+'</b> ['+escHtml(hr.stageName)+'] ';
-      });
-      html += '</div>';
-    }
-    if(!stagesCount){
-      html += '<div style="color:#999;font-size:12px;padding:4px 0">Этапы не добавлены. Откройте объект в Прорабе.</div>';
-    }
+  // Table per manager
+  const mgrPhoto = m => m.photo ? '<img src="'+m.photo+'" style="width:32px;height:32px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;">' : '<span style="display:inline-block;width:32px;height:32px;border-radius:50%;background:#1976D2;color:white;text-align:center;line-height:32px;font-weight:700;margin-right:8px;">'+((m.full_name||'?')[0])+'</span>';
 
-    (proj.stages||[]).forEach(function(stage,si){
-      var st = getStageTraffic(stage);
-      var stEmoji = trafficEmoji(st);
-      var scCls = st==='red'?'sc-red':st==='yellow'?'sc-yellow':st==='green'?'sc-green':'';
-      var sigCount = (stage.signals||[]).length;
-      var stRed = (stage.signals||[]).filter(function(s){return s.status==='red';}).length;
-      var stGreen = (stage.signals||[]).filter(function(s){return s.status==='green';}).length;
-      var stageCardId = 'chief-stage-'+pid+'-'+si;
+  mgrList.forEach(mgr=>{
+    const ps = projsByMgr(mgr.id);
+    if(!ps.length) return;
+    const mgrRed = ps.filter(p=>tlClass(p)==='red').length;
+    html += '<div style="margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:2px solid #1976D2;margin-bottom:4px;">' +
+        mgrPhoto(mgr) +
+        '<span style="font-weight:700;font-size:14px;color:#1a237e;">'+(mgr.full_name||mgr.name||'РП')+'</span>' +
+        (mgrRed>0?'<span style="margin-left:8px;background:#ffebee;color:#e53935;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;">🔴'+mgrRed+' проблем</span>':'') +
+        '<span style="margin-left:auto;font-size:11px;color:#90a4ae;">'+ps.length+' obj.</span>' +
+      '</div>' +
+      '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">' +
+      '<table class="chief-dash-table">' +
+      '<thead><tr>' +
+        '<th class="cdt-name">ОБЪЕКТ</th>' +
+        '<th class="cdt-stage">ЭТАП</th>' +
+        '<th class="cdt-deadline">СРОК</th>' +
+        '<th class="cdt-pct">%</th>' +
+        '<th class="cdt-bw">БАЛ. РАБ</th>' +
+        '<th class="cdt-bm">БАЛ. МАТ</th>' +
+      '</tr></thead><tbody>';
 
-      html += '<div class="stage-card '+scCls+'">';
-      html += '<div class="stage-card-hdr" data-toggle="'+stageCardId+'" onclick="onChiefToggle(this)">';
-      html += '<span>'+stEmoji+'</span>';
-      html += '<b style="font-size:13px">'+escHtml(stage.name||('Этап '+(si+1)))+'</b>';
-      if(sigCount>0) html += '<span style="font-size:11px;color:#888;margin-left:6px">'+stGreen+'🟢 '+stRed+'🔴</span>';
-      if(sigCount===0) html += '<button class="sc-init-btn" data-pid="'+pid+'" data-si="'+si+'" onclick="event.stopPropagation();onInitSignals(this)">+ Инициализировать сигналы</button>';
-      html += '<span style="margin-left:auto;color:#aaa;font-size:11px">▼</span>';
-      html += '</div>';
-
-      html += '<div class="stage-card-body" id="'+stageCardId+'">';
-      if(sigCount===0){
-        html += '<div style="padding:8px 12px;color:#888;font-size:12px">Нажмите кнопку выше для инициализации.</div>';
-      } else {
-        html += renderSignalsTable(proj,si);
-      }
-      html += '</div>';
-      html += '</div>';
+    ps.forEach(p=>{
+      const cl = tlClass(p);
+      const stageSummary = getProjectStagesSummary(p);
+      const bwColor = p.balanceWork<0?'color:#e53935;font-weight:700':'color:#2e7d32;';
+      const bmColor = p.balanceMat<0?'color:#e53935;font-weight:700':'color:#2e7d32;';
+      const pctDisp = stageSummary.pct>0?stageSummary.pct+'%':'0%';
+      html += '<tr style="'+(cl==='red'?'background:#fff5f5':'')+(cl==='yellow'?'background:#fffde7':'')+'">' +
+        '<td class="cdt-name">'+tlEmoji(cl)+' <strong>'+escStr(p.name||p.address||'—')+'</strong><br><span style="font-size:10px;color:#90a4ae;">'+escStr(p.address||'')+'</span></td>' +
+        '<td class="cdt-stage"><span style="font-size:11px;">'+escStr(stageSummary.currentStage)+'</span>'+
+          (stageSummary.shift>0?'<br><span style="font-size:10px;color:#e53935;font-weight:700;">+'+stageSummary.shift+'д</span>':'')+
+        '</td>' +
+        '<td class="cdt-deadline">'+daysLeft(p)+'</td>' +
+        '<td class="cdt-pct">'+pctDisp+'</td>' +
+        '<td class="cdt-bw" style="'+bwColor+'">'+fmtK(p.balanceWork)+'</td>' +
+        '<td class="cdt-bm" style="'+bmColor+'">'+fmtK(p.balanceMat)+'</td>' +
+      '</tr>';
     });
 
-    html += '</div>';
-    html += '</div>';
+    html += '</tbody></table></div></div>';
   });
 
-  html += '</div>';
   body.innerHTML = html;
-}
-
-function onChiefToggle(el){
-  var id = el.dataset.toggle;
-  if(!id) return;
-  var target = document.getElementById(id);
-  if(target) target.classList.toggle('open');
-}
-function onInitSignals(btn){
-  var pid = btn.dataset.pid;
-  var si = parseInt(btn.dataset.si);
-  var proj = (STATE.projects||[]).find(function(p){return p.id===pid;});
-  if(!proj||!proj.stages||!proj.stages[si]) return;
-  initStageSignals(proj.stages[si]);
-  saveState();
-  renderChief();
-}
-
-function toggleProjCard(id){
-  var el = document.getElementById(id);
-  if(!el) return;
-  el.classList.toggle('open');
-}
-function toggleStageCard(id){
-  var el = document.getElementById(id);
-  if(!el) return;
-  el.classList.toggle('open');
-}
-function initAndShowSignals(projId, stageIdx){
-  var proj = (STATE.projects||[]).find(function(p){return p.id===projId;});
-  if(!proj||!proj.stages||!proj.stages[stageIdx]) return;
-  initStageSignals(proj.stages[stageIdx]);
-  saveState();
-  renderChief();
-}
-function renderSignalsTable(proj, stageIdx){
-  var stage = proj.stages[stageIdx];
-  if(!stage||!stage.signals) return '';
-  var html = '<table class="signals-table"><thead><tr><th style="width:30px"></th><th>Сигнал</th><th style="width:60px">Статус</th><th>Комментарий</th></tr></thead><tbody>';
-  stage.signals.forEach(function(sig, si){
-    var def = SIGNAL_DEFS.find(function(d){return d.id===sig.defId;})||{id:sig.defId,label:'Сигнал '+sig.defId};
-    var rowCls = sig.status==='red'?'sig-red':sig.status==='yellow'?'sig-yellow':'sig-green';
-    html += '<tr class="sig-row '+rowCls+'">';
-    html += '<td><input type="checkbox"'+(sig.checked?' checked':'')+' data-pid="'+escHtml(proj.id)+'" data-si="'+stageIdx+'" data-sigi="'+si+'" data-field="checked" onchange="onSignalChiefChange(this)"></td>';
-    html += '<td class="sig-label">'+escHtml(def.label)+'</td>';
-    html += '<td><select data-pid="'+escHtml(proj.id)+'" data-si="'+stageIdx+'" data-sigi="'+si+'" data-field="status" onchange="onSignalChiefChange(this)">'
-      +'<option value="green"'+(sig.status==='green'?' selected':'')+'>🟢</option>'
-      +'<option value="yellow"'+(sig.status==='yellow'?' selected':'')+'>🟡</option>'
-      +'<option value="red"'+(sig.status==='red'?' selected':'')+'>🔴</option>'
-      +'</select></td>';
-    html += '<td><input type="text" class="sig-comment" value="'+escHtml(sig.comment||'')+'" placeholder="Комментарий..." data-pid="'+escHtml(proj.id)+'" data-si="'+stageIdx+'" data-sigi="'+si+'" data-field="comment" onchange="onSignalChiefChange(this)"></td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table>';
-  return html;
-}
-function onSignalChiefChange(el){
-  var pid = el.dataset.pid;
-  var si = parseInt(el.dataset.si);
-  var sigi = parseInt(el.dataset.sigi);
-  var field = el.dataset.field;
-  var val = field==='checked'?el.checked:el.value;
-  var proj = (STATE.projects||[]).find(function(p){return p.id===pid;});
-  if(!proj||!proj.stages||!proj.stages[si]||!proj.stages[si].signals) return;
-  proj.stages[si].signals[sigi][field] = val;
-  saveState();
-  // Update row class
-  var row = el.closest('.sig-row');
-  if(row&&field==='status'){
-    row.className='sig-row '+(val==='red'?'sig-red':val==='yellow'?'sig-yellow':'sig-green');
-  }
-  // Update stage card class
-  var newT = getStageTraffic(proj.stages[si]);
-  var scEl = el.closest('.stage-card');
-  if(scEl) scEl.className = 'stage-card '+(newT==='red'?'sc-red':newT==='yellow'?'sc-yellow':newT==='green'?'sc-green':'');
-  // Update proj card class
-  var newPT = getProjectTraffic(proj);
-  var pcEl = el.closest('.proj-card');
-  if(pcEl) pcEl.className = 'proj-card '+(newPT==='red'?'pcard-red':newPT==='yellow'?'pcard-yellow':newPT==='green'?'pcard-green':'');
 }
 
 function escStr(s){ return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -5340,7 +4977,7 @@ function renderGantt(){
     head = '<div class="gantt-summary">\u0421\u0442\u0430\u0440\u0442: <b>'+fmtRuDate(gm.start)+'</b> \u00B7 \u0424\u0438\u043D\u0438\u0448: <b>'+fmtRuDate(addDaysISO(gm.end,-1))+'</b> \u00B7 \u0412\u0441\u0435\u0433\u043E: <b>'+gm.total+' \u0434\u043D</b> \u00B7 \u042D\u0442\u0430\u043F\u043E\u0432: <b>'+scheduled.length+'</b></div>';
     timeline = '<div class="gantt-wrap"><div class="gantt-names"><div class="gantt-names-head"></div>'+names+'</div>'+
       '<div class="gantt-timeline"><div class="gantt-scale-2lvl" style="width:'+tlWidth+'px;"><div class="gantt-months">'+monthsScale+'</div><div class="gantt-days">'+daysScale+'</div></div>'+
-      '<div class="gantt-bars" style="width:'+tlWidth+'px;">'+bars+'</div></div><div class="signals-container" id="sc-'+proj.id+'-'+i+'"></div></div>';
+      '<div class="gantt-bars" style="width:'+tlWidth+'px;">'+bars+'</div></div></div>';
   }
   let editor = secs.map((s,i)=>{
     const st = sch.stages[s.key] || {};
