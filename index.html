@@ -5723,7 +5723,7 @@ boot();
   }
   removeOldEntry();
   document.addEventListener('DOMContentLoaded', removeOldEntry);
-  setTimeout(removeOldEntry, 1500);
+  if(!window.__pbKillObs){ try{ var obs=new MutationObserver(function(){ removeOldEntry(); }); obs.observe(document.documentElement,{childList:true,subtree:true}); window.__pbKillObs=obs; }catch(e){} }
   var PB={};
   PB.pb=function(){ try{ return pbOf(activeProject()); }catch(e){ return null; } };
   PB.isEdit=function(){ return document.body.classList.contains('edit-mode'); };
