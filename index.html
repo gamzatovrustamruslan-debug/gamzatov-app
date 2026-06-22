@@ -5295,6 +5295,110 @@ function genGanttPdf(){
   }catch(err){customAlert('\u041E\u0448\u0438\u0431\u043A\u0430 PDF \u0433\u0440\u0430\u0444\u0438\u043A\u0430: '+(err.message||err));}
 }
 
+/* ============================================================
+   РЕДАКТОР СМЕТЫ — БЛОК 1: СЛОЙ ДАННЫХ (таблица estimates)
+   Добавляет работу со сметами в Supabase: шаблон + по объекту.
+   Ничего из старого кода не меняет. Только добавляет функции.
+   ============================================================ */
+window.EST = (function(){
+
+  // --- мелкие помощники ---
+  function uid(prefix){
+    var p = prefix || 'el';
+    return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+  function num(v){ var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+
+  // --- АВТОСУММЫ (считаем снизу вверх) ---
+  function itemSum(it){ return num(it.c) * num(it.qty); }
+  function subSum(sub){
+    var s = 0, w = (sub && sub.w) || [];
+    for (var i=0;i<w.length;i++) s += itemSum(w[i]);
+    return s;
+  }
+  function stageSum(stage){
+    var s = 0, g = (stage && stage.g) || [];
+    for (var i=0;i<g.length;i++) s += subSum(g[i]);
+    return s;
+  }
+  function totalSum(structure){
+    var s = 0, st = structure || [];
+    for (var i=0;i<st.length;i++) s += stageSum(st[i]);
+    return s;
+  }
+
+  // Гарантируем id у каждого этапа/подэтапа/наименования.
+  function ensureIds(structure){
+    var st = structure || [];
+    for (var i=0;i<st.length;i++){
+      var stage = st[i];
+      if (!stage.id) stage.id = uid('s');
+      if (!Array.isArray(stage.g)) stage.g = [];
+      for (var j=0;j<stage.g.length;j++){
+        var sub = stage.g[j];
+        if (!sub.id) sub.id = uid('g');
+        if (!Array.isArray(sub.w)) sub.w = [];
+        for (var k=0;k<sub.w.length;k++){
+          var it = sub.w[k];
+          if (!it.id) it.id = uid('w');
+          if (it.qty === undefined || it.qty === null) it.qty = 0;
+        }
+      }
+    }
+    return st;
+  }
+
+  function clone(structure){ return JSON.parse(JSON.stringify(structure || [])); }
+
+  // --- ЗАГРУЗКА из Supabase ---
+  async function load(objectId){
+    if (!supa || !currentUser) return [];
+    try {
+      var q = supa.from('estimates').select('structure').eq('owner_id', currentUser.id);
+      q = (objectId == null) ? q.is('object_id', null) : q.eq('object_id', objectId);
+      var res = await q.maybeSingle();
+      if (res.error) { console.warn('EST.load error', res.error); return []; }
+      var struct = (res.data && res.data.structure) ? res.data.structure : [];
+      return ensureIds(struct);
+    } catch(e){ console.warn('EST.load exception', e); return []; }
+  }
+
+  // --- СОХРАНЕНИЕ в Supabase ---
+  async function save(objectId, structure){
+    if (!supa || !currentUser) return false;
+    try {
+      ensureIds(structure);
+      var row = {
+        owner_id: currentUser.id,
+        object_id: (objectId == null) ? null : String(objectId),
+        structure: structure,
+        updated_at: new Date().toISOString()
+      };
+      var res = await supa.from('estimates')
+        .upsert(row, { onConflict: (objectId == null) ? 'owner_id' : 'owner_id,object_id' });
+      if (res.error){ console.warn('EST.save error', res.error); return false; }
+      return true;
+    } catch(e){ console.warn('EST.save exception', e); return false; }
+  }
+
+  // Загрузить смету объекта; если нет — создать копией шаблона.
+  async function loadForObject(objectId){
+    var own = await load(objectId);
+    if (own && own.length) return own;
+    var tpl = await load(null);
+    var copy = ensureIds(clone(tpl));
+    if (copy.length) await save(objectId, copy);
+    return copy;
+  }
+
+  return {
+    uid: uid,
+    itemSum: itemSum, subSum: subSum, stageSum: stageSum, totalSum: totalSum,
+    ensureIds: ensureIds, clone: clone,
+    load: load, save: save, loadForObject: loadForObject
+  };
+})();
+
 // ====== СТАРТ ======
 boot();
 </script>
