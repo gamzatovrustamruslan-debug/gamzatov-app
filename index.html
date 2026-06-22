@@ -5399,6 +5399,300 @@ window.EST = (function(){
   };
 })();
 
+/* ============================================================
+   РЕДАКТОР СМЕТЫ — БЛОК 2: ИНТЕРФЕЙС РЕДАКТОРА (ESTUI)
+   Модальный редактор: этапы / подэтапы / наименования.
+   Добавить · удалить · переименовать · двигать · цена/объём/единица.
+   Работает поверх EST (БЛОК 1). Текущий рендер сметы НЕ трогает.
+   ============================================================ */
+(function(){
+  if (!window.EST) { console.warn('ESTUI: EST (БЛОК 1) не найден'); }
+
+  var ST = { objectId: null, title: '', data: [], open: {} };
+
+  function n(v){ var x = parseFloat(v); return isNaN(x) ? 0 : x; }
+  function fmt(v){ return n(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); }
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+  function uid(p){ return (window.EST && EST.uid) ? EST.uid(p) : (p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)); }
+
+  function findStage(id){ for (var i=0;i<ST.data.length;i++) if (ST.data[i].id===id) return {st:ST.data[i], si:i}; return null; }
+  function findSub(stage, id){ for (var j=0;j<stage.g.length;j++) if (stage.g[j].id===id) return {sub:stage.g[j], gi:j}; return null; }
+
+  function addStage(){ ST.data.push({ id:uid('s'), t:'Новый этап', g:[] }); render(); }
+  function delStage(id){ var f=findStage(id); if(!f) return; if(!confirm('Удалить этап со всеми подэтапами?')) return; ST.data.splice(f.si,1); render(); }
+  function moveStage(id, dir){
+    var f=findStage(id); if(!f) return; var j=f.si+dir;
+    if (j<0||j>=ST.data.length) return;
+    var a=ST.data; var tmp=a[f.si]; a[f.si]=a[j]; a[j]=tmp; render();
+  }
+  function renameStage(id, val){ var f=findStage(id); if(f) f.st.t=val; }
+
+  function addSub(stageId){ var f=findStage(stageId); if(!f) return; f.st.g.push({ id:uid('g'), t:'Новый подэтап', w:[] }); ST.open[f.st.id]=true; render(); }
+  function delSub(stageId, subId){ var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return; if(!confirm('Удалить подэтап?')) return; f.st.g.splice(s.gi,1); render(); }
+  function moveSub(stageId, subId, dir){
+    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    var j=s.gi+dir; if(j<0||j>=f.st.g.length) return;
+    var a=f.st.g; var tmp=a[s.gi]; a[s.gi]=a[j]; a[j]=tmp; render();
+  }
+  function renameSub(stageId, subId, val){ var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(s) s.sub.t=val; }
+
+  function addItem(stageId, subId){
+    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    s.sub.w.push({ id:uid('w'), n:'Новое наименование', u:'шт', m:0, c:0, qty:0 });
+    ST.open[f.st.id]=true; ST.open[subId]=true; render();
+  }
+  function delItem(stageId, subId, itemId){
+    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    if(!confirm('Удалить наименование?')) return;
+    for (var k=0;k<s.sub.w.length;k++){ if(s.sub.w[k].id===itemId){ s.sub.w.splice(k,1); break; } }
+    render();
+  }
+  function moveItem(stageId, subId, itemId, dir){
+    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    var w=s.sub.w, idx=-1; for (var k=0;k<w.length;k++) if(w[k].id===itemId){ idx=k; break; }
+    if (idx<0) return; var j=idx+dir; if(j<0||j>=w.length) return;
+    var tmp=w[idx]; w[idx]=w[j]; w[j]=tmp; render();
+  }
+  function setItem(stageId, subId, itemId, field, val){
+    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    var w=s.sub.w; for (var k=0;k<w.length;k++){ if(w[k].id===itemId){
+      if (field==='n'||field==='u') w[k][field]=val;
+      else w[k][field]=n(val);
+      break;
+    }}
+    recalcSums();
+  }
+
+  function toggle(id){ ST.open[id]=!ST.open[id]; render(); }
+
+  function recalcSums(){
+    if (!window.EST) return;
+    var box = document.getElementById('estuiBox'); if (!box) return;
+    ST.data.forEach(function(st){
+      var se = box.querySelector('[data-stagesum="'+st.id+'"]'); if (se) se.textContent = fmt(EST.stageSum(st))+' ₽';
+      (st.g||[]).forEach(function(sub){
+        var ge = box.querySelector('[data-subsum="'+sub.id+'"]'); if (ge) ge.textContent = fmt(EST.subSum(sub))+' ₽';
+        (sub.w||[]).forEach(function(it){
+          var ie = box.querySelector('[data-itemsum="'+it.id+'"]'); if (ie) ie.textContent = fmt(EST.itemSum(it))+' ₽';
+        });
+      });
+    });
+    var te = box.querySelector('[data-totalsum]'); if (te) te.textContent = fmt(EST.totalSum(ST.data))+' ₽';
+  }
+
+  function render(){
+    var box = document.getElementById('estuiBox');
+    if (!box) return;
+    var total = window.EST ? EST.totalSum(ST.data) : 0;
+    var html = '';
+    html += '<div class="estui-head">';
+    html += '  <div class="estui-title">'+esc(ST.title)+'</div>';
+    html += '  <div class="estui-total">Итого: <b data-totalsum>'+fmt(total)+' ₽</b></div>';
+    html += '</div>';
+    html += '<div class="estui-scroll">';
+    if (!ST.data.length){ html += '<div class="estui-empty">Смета пустая. Добавьте первый этап.</div>'; }
+    ST.data.forEach(function(st, si){
+      var stOpen = !!ST.open[st.id];
+      var stSum = window.EST ? EST.stageSum(st) : 0;
+      html += '<div class="estui-stage">';
+      html += '  <div class="estui-stage-h">';
+      html += '    <span class="estui-tog" onclick="ESTUI._t(\''+st.id+'\')">'+(stOpen?'▾':'▸')+'</span>';
+      html += '    <input class="estui-name stage" value="'+esc(st.t)+'" onchange="ESTUI._rn(\''+st.id+'\',this.value)" placeholder="Название этапа">';
+      html += '    <span class="estui-sum" data-stagesum="'+st.id+'">'+fmt(stSum)+' ₽</span>';
+      html += '    <span class="estui-mv" onclick="ESTUI._ms(\''+st.id+'\',-1)" title="Вверх">▲</span>';
+      html += '    <span class="estui-mv" onclick="ESTUI._ms(\''+st.id+'\',1)" title="Вниз">▼</span>';
+      html += '    <span class="estui-del" onclick="ESTUI._ds(\''+st.id+'\')" title="Удалить этап">🗑</span>';
+      html += '  </div>';
+      if (stOpen){
+        html += '  <div class="estui-stage-b">';
+        (st.g||[]).forEach(function(sub){
+          var sbOpen = !!ST.open[sub.id];
+          var sbSum = window.EST ? EST.subSum(sub) : 0;
+          html += '  <div class="estui-sub">';
+          html += '    <div class="estui-sub-h">';
+          html += '      <span class="estui-tog" onclick="ESTUI._t(\''+sub.id+'\')">'+(sbOpen?'▾':'▸')+'</span>';
+          html += '      <input class="estui-name sub" value="'+esc(sub.t)+'" onchange="ESTUI._rg(\''+st.id+'\',\''+sub.id+'\',this.value)" placeholder="Название подэтапа">';
+          html += '      <span class="estui-sum" data-subsum="'+sub.id+'">'+fmt(sbSum)+' ₽</span>';
+          html += '      <span class="estui-mv" onclick="ESTUI._mg(\''+st.id+'\',\''+sub.id+'\',-1)">▲</span>';
+          html += '      <span class="estui-mv" onclick="ESTUI._mg(\''+st.id+'\',\''+sub.id+'\',1)">▼</span>';
+          html += '      <span class="estui-del" onclick="ESTUI._dg(\''+st.id+'\',\''+sub.id+'\')" title="Удалить подэтап">🗑</span>';
+          html += '    </div>';
+          if (sbOpen){
+            html += '    <div class="estui-sub-b">';
+            html += '      <div class="estui-cols"><span>Наименование</span><span>Цена</span><span>Объём</span><span>Ед.</span><span>Сумма</span><span></span></div>';
+            (sub.w||[]).forEach(function(it){
+              var iSum = window.EST ? EST.itemSum(it) : 0;
+              html += '      <div class="estui-item">';
+              html += '        <input class="estui-iname" value="'+esc(it.n)+'" onchange="ESTUI._si(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',\'n\',this.value)" placeholder="Название">';
+              html += '        <input class="estui-num" type="number" inputmode="decimal" value="'+n(it.c)+'" oninput="ESTUI._si(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',\'c\',this.value)" placeholder="Цена">';
+              html += '        <input class="estui-num" type="number" inputmode="decimal" value="'+n(it.qty)+'" oninput="ESTUI._si(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',\'qty\',this.value)" placeholder="Объём">';
+              html += '        <input class="estui-unit" value="'+esc(it.u)+'" onchange="ESTUI._si(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',\'u\',this.value)" placeholder="ед">';
+              html += '        <span class="estui-isum" data-itemsum="'+it.id+'">'+fmt(iSum)+' ₽</span>';
+              html += '        <span class="estui-irow-ctl">';
+              html += '          <span class="estui-mv" onclick="ESTUI._mi(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',-1)">▲</span>';
+              html += '          <span class="estui-mv" onclick="ESTUI._mi(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',1)">▼</span>';
+              html += '          <span class="estui-del" onclick="ESTUI._di(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\')">🗑</span>';
+              html += '        </span>';
+              html += '      </div>';
+            });
+            html += '      <button class="estui-add item" onclick="ESTUI._ai(\''+st.id+'\',\''+sub.id+'\')">➕ Наименование</button>';
+            html += '    </div>';
+          }
+          html += '  </div>';
+        });
+        html += '    <button class="estui-add sub" onclick="ESTUI._ag(\''+st.id+'\')">➕ Подэтап</button>';
+        html += '  </div>';
+      }
+      html += '</div>';
+    });
+    html += '  <button class="estui-add stage" onclick="ESTUI._as()">➕ Этап</button>';
+    html += '</div>';
+    html += '<div class="estui-foot">';
+    html += '  <button class="estui-btn cancel" onclick="ESTUI.close()">Закрыть</button>';
+    html += '  <button class="estui-btn save" onclick="ESTUI.save()">💾 Сохранить</button>';
+    html += '</div>';
+    box.innerHTML = html;
+  }
+
+  async function open(objectId, title){
+    ST.objectId = (objectId==null ? null : String(objectId));
+    ST.title = title || (objectId==null ? 'Шаблон сметы' : 'Смета объекта');
+    ST.open = {};
+    ensureOverlay();
+    var box = document.getElementById('estuiBox');
+    box.innerHTML = '<div class="estui-loading">Загрузка…</div>';
+    document.getElementById('estuiOverlay').classList.add('show');
+    var data;
+    if (objectId==null) data = await EST.load(null);
+    else data = await EST.loadForObject(objectId);
+    ST.data = data || [];
+    render();
+  }
+  function close(){
+    var ov = document.getElementById('estuiOverlay');
+    if (ov) ov.classList.remove('show');
+  }
+  async function save(){
+    var ok = await EST.save(ST.objectId, ST.data);
+    if (ok){
+      var btn = document.querySelector('.estui-btn.save');
+      if (btn){ btn.textContent='✓ Сохранено'; setTimeout(function(){ if(btn) btn.textContent='💾 Сохранить'; },1500); }
+      try { if (typeof renderSections==='function' && typeof activeProject==='function'){ var p=activeProject(); if(p) renderSections(p); } } catch(e){}
+      try { if (typeof recalc==='function') recalc(); } catch(e){}
+    } else {
+      alert('Не удалось сохранить. Проверьте интернет и попробуйте ещё раз.');
+    }
+  }
+  function ensureOverlay(){
+    if (document.getElementById('estuiOverlay')) return;
+    var ov = document.createElement('div');
+    ov.id = 'estuiOverlay';
+    ov.className = 'estui-overlay';
+    ov.innerHTML = '<div class="estui-box" id="estuiBox"></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function(e){ if (e.target===ov) close(); });
+  }
+
+  window.ESTUI = {
+    open: open, close: close, save: save,
+    _as: addStage, _ds: delStage, _ms: moveStage, _rn: renameStage,
+    _ag: addSub, _dg: delSub, _mg: moveSub, _rg: renameSub,
+    _ai: addItem, _di: delItem, _mi: moveItem, _si: setItem,
+    _t: toggle
+  };
+})();
+
+/* ============================================================
+   РЕДАКТОР СМЕТЫ — БЛОК 3: КНОПКИ ВХОДА + СТИЛИ
+   Добавляет стили редактора и две кнопки:
+   «Шаблон сметы» (общий эталон) и «Смета объекта».
+   Встраивается само, без правки HTML. Старое не трогает.
+   ============================================================ */
+(function(){
+  var css = ''
+  + '.estui-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:none;align-items:flex-end;justify-content:center;}'
+  + '.estui-overlay.show{display:flex;}'
+  + '.estui-box{background:#f0f2f5;width:100%;max-width:760px;height:94vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -4px 20px rgba(0,0,0,.2);}'
+  + '.estui-head{background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;}'
+  + '.estui-title{font-size:15px;font-weight:700;}'
+  + '.estui-total{font-size:13px;white-space:nowrap;}'
+  + '.estui-total b{font-size:15px;}'
+  + '.estui-scroll{flex:1;overflow-y:auto;padding:10px;}'
+  + '.estui-foot{display:flex;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid #e0e0e0;}'
+  + '.estui-btn{flex:1;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}'
+  + '.estui-btn.cancel{background:#ECEFF1;color:#546E7A;}'
+  + '.estui-btn.save{background:linear-gradient(135deg,#2E7D32,#1B5E20);color:#fff;}'
+  + '.estui-empty,.estui-loading{text-align:center;color:#90a4ae;padding:30px 10px;font-size:14px;}'
+  + '.estui-stage{background:#fff;border-radius:12px;margin-bottom:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);}'
+  + '.estui-stage-h{display:flex;align-items:center;gap:6px;padding:8px 10px;background:linear-gradient(135deg,#f8f9fa,#e9ecef);}'
+  + '.estui-stage-b{padding:6px 8px 8px;}'
+  + '.estui-sub{border-left:3px solid #1976D2;margin:6px 0;background:#fafafa;border-radius:0 8px 8px 0;}'
+  + '.estui-sub-h{display:flex;align-items:center;gap:6px;padding:7px 8px;}'
+  + '.estui-sub-b{padding:4px 8px 8px;}'
+  + '.estui-cols{display:grid;grid-template-columns:1fr 64px 56px 46px 70px 56px;gap:4px;font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.3px;font-weight:600;padding:4px 2px;}'
+  + '.estui-item{display:grid;grid-template-columns:1fr 64px 56px 46px 70px 56px;gap:4px;align-items:center;padding:3px 2px;border-bottom:1px solid #f0f0f0;}'
+  + '.estui-tog{cursor:pointer;font-size:13px;color:#607D8B;width:16px;text-align:center;flex-shrink:0;}'
+  + '.estui-name{flex:1;min-width:0;border:1px solid #e0e0e0;border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit;background:#fff;}'
+  + '.estui-name.stage{font-weight:700;color:#212529;}'
+  + '.estui-name.sub{font-weight:600;color:#424242;font-size:12.5px;}'
+  + '.estui-name:focus,.estui-iname:focus,.estui-num:focus,.estui-unit:focus{outline:none;border-color:#1976D2;background:#fff;}'
+  + '.estui-sum{font-size:12px;font-weight:700;color:#E65100;white-space:nowrap;}'
+  + '.estui-mv{cursor:pointer;color:#90a4ae;font-size:12px;padding:2px 3px;user-select:none;}'
+  + '.estui-mv:active{color:#1976D2;}'
+  + '.estui-del{cursor:pointer;font-size:13px;padding:2px 3px;}'
+  + '.estui-iname{min-width:0;border:1px solid #e0e0e0;border-radius:6px;padding:6px;font-size:12px;font-family:inherit;background:#fff;}'
+  + '.estui-num{min-width:0;width:100%;border:1px solid #BBDEFB;border-radius:6px;padding:6px 4px;font-size:12px;font-family:inherit;text-align:center;background:#E3F2FD;color:#0D47A1;font-weight:700;}'
+  + '.estui-unit{min-width:0;width:100%;border:1px solid #e0e0e0;border-radius:6px;padding:6px 2px;font-size:11px;font-family:inherit;text-align:center;background:#fff;}'
+  + '.estui-isum{font-size:11px;font-weight:700;color:#2E7D32;text-align:center;}'
+  + '.estui-irow-ctl{display:flex;align-items:center;justify-content:flex-end;}'
+  + '.estui-add{margin-top:6px;width:100%;border:1px dashed #90caf9;background:#E3F2FD;color:#0D47A1;border-radius:8px;padding:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}'
+  + '.estui-add.stage{border-color:#43A047;background:#E8F5E9;color:#1B5E20;font-size:13px;padding:10px;}'
+  + '.estui-add.sub{border-color:#1976D2;}'
+  + '.est-entry-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;}'
+  + '.est-entry-btn{flex:1 1 auto;min-width:64px;padding:7px 9px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid;cursor:pointer;font-family:inherit;text-align:center;}'
+  + '.est-entry-btn.obj{background:#E8F5E9;color:#1B5E20;border-color:#A5D6A7;}'
+  + '.est-entry-btn.tpl{background:#FFF3E0;color:#E65100;border-color:#FFCC80;}';
+  var style = document.createElement('style');
+  style.id = 'estuiStyle';
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  function openObject(){
+    if (typeof activeProject !== 'function'){ alert('Откройте объект.'); return; }
+    var p = activeProject();
+    if (!p || !p.id){ alert('Сначала откройте объект.'); return; }
+    var title = 'Смета: ' + (p.name || 'объект');
+    window.ESTUI.open(p.id, title);
+  }
+  function openTemplate(){ window.ESTUI.open(null, 'Шаблон сметы (эталон)'); }
+
+  window.openEstimateObject = openObject;
+  window.openEstimateTemplate = openTemplate;
+
+  function injectButtons(){
+    var bar = document.querySelector('.doc-toolbar');
+    if (!bar || document.getElementById('estEntryRow')) return;
+    var label = document.createElement('div');
+    label.className = 'doc-group-label';
+    label.textContent = '📝 Редактор сметы';
+    var row = document.createElement('div');
+    row.id = 'estEntryRow';
+    row.className = 'est-entry-row';
+    row.innerHTML =
+        '<button class="est-entry-btn obj" onclick="openEstimateObject()">✏️ Смета объекта</button>'
+      + '<button class="est-entry-btn tpl" onclick="openEstimateTemplate()">⭐ Шаблон сметы</button>';
+    bar.appendChild(label);
+    bar.appendChild(row);
+  }
+  injectButtons();
+  document.addEventListener('DOMContentLoaded', injectButtons);
+  setInterval(injectButtons, 1500);
+})();
+
 // ====== СТАРТ ======
 boot();
 </script>
