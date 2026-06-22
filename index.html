@@ -6135,5 +6135,101 @@ setTimeout(loadCloud, 1500);
 })();
 </script>
 
+
+<style>
+#g2CardHost .g2-master-sec{ background:#fff; border-radius:12px; margin:10px 0 14px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+#g2CardHost .g2-master-head{ padding:11px 12px; background:linear-gradient(135deg,#f8f9fa,#e9ecef); display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; border-bottom:1px solid #dee2e6; gap:6px; }
+#g2CardHost .g2-master-head h3{ margin:0; font-size:15px; font-weight:700; color:#1c1c1e; display:flex; align-items:center; gap:7px; }
+#g2CardHost .g2-master-toggle{ font-size:15px; color:#64748b; }
+#g2CardHost .g2-master-body{ padding:12px; display:none; }
+#g2CardHost .g2-master-sec.open .g2-master-body{ display:block; }
+#g2CardHost .g2-master-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+#g2CardHost .g2-master-pre{ white-space:pre-wrap; font:13px/1.5 -apple-system,system-ui,sans-serif; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; color:#0f172a; max-height:340px; overflow:auto; }
+#g2CardHost .g2-master-note{ font-size:12px; color:#94a3b8; margin-top:8px; }
+</style>
+<script>
+(function(){
+'use strict';
+function buildMasterText(proj){ if(window.GAMZ2 && window.GAMZ2.buildMaster) return window.GAMZ2.buildMaster(proj); return ''; }
+function renderMasterSection(proj){
+  var host = document.getElementById('g2CardHost'); if(!host) return;
+  var sec = document.getElementById('g2MasterSec');
+  var wasOpen = sec ? sec.classList.contains('open') : false;
+  if(!sec){ sec = document.createElement('div'); sec.id='g2MasterSec'; sec.className='g2-master-sec'; host.insertBefore(sec, host.firstChild); }
+  else if(sec.parentNode!==host || host.firstChild!==sec){ host.insertBefore(sec, host.firstChild); }
+  var txt = buildMasterText(proj);
+  var esc = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  sec.innerHTML =
+    '<div class="g2-master-head" onclick="GAMZ3.toggleMaster()"><h3>📨 Сообщение мастеру / поставщику</h3><span class="g2-master-toggle">'+(wasOpen?'−':'＋')+'</span></div>'
+    +'<div class="g2-master-body">'
+      +'<div class="g2-master-actions">'
+        +'<button class="back-btn" style="background:#16a34a;color:#fff" onclick="GAMZ3.copyMaster(event)">📋 Скопировать текст</button>'
+        +'<button class="back-btn" onclick="GAMZ3.refreshMaster(event)">🔄 Обновить из шапки</button>'
+      +'</div>'
+      +'<div class="g2-master-pre" id="g2MasterPre">'+esc(txt)+'</div>'
+      +'<div class="g2-master-note">Данные тянутся из шапки объекта. Личное (телефон, договор, заметки) НЕ включается.</div>'
+    +'</div>';
+  if(wasOpen) sec.classList.add('open');
+}
+function toggleMaster(){ var sec=document.getElementById('g2MasterSec'); if(!sec) return; sec.classList.toggle('open'); var tg=sec.querySelector('.g2-master-toggle'); if(tg) tg.textContent = sec.classList.contains('open')?'−':'＋'; if(sec.classList.contains('open')) refreshMaster(); }
+function refreshMaster(e){ if(e&&e.stopPropagation) e.stopPropagation(); var p=window.activeProject&&window.activeProject(); if(!p) return; var pre=document.getElementById('g2MasterPre'); if(pre) pre.textContent = buildMasterText(p); }
+function copyMaster(e){ if(e&&e.stopPropagation) e.stopPropagation(); var p=window.activeProject&&window.activeProject(); if(!p) return; var txt=buildMasterText(p); function ok(){ if(window.GAMZ2&&window.GAMZ2._toast) window.GAMZ2._toast('✅ Скопировано — вставьте мастеру/поставщику'); } if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok,function(){fb(txt);ok();}); } else { fb(txt); ok(); } }
+function fb(txt){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(_){} document.body.removeChild(ta); }
+(function(){
+  var orig = window.renderProject;
+  if(typeof orig==='function' && !orig.__g3rp){
+    window.renderProject = function(){
+      var r = orig.apply(this, arguments);
+      try{
+        var p=window.activeProject&&window.activeProject();
+        if(p){
+          var host=document.getElementById('g2CardHost');
+          if(host){ var ob=host.querySelector('[onclick="GAMZ2.copyMaster()"]'); if(ob){ var w=ob.closest('div'); if(w&&w.parentNode===host) w.remove(); } }
+          renderMasterSection(p);
+        }
+      }catch(e){ console.warn('GAMZ3 rp', e); }
+      return r;
+    };
+    window.renderProject.__g3rp = true;
+  }
+})();
+function ensureSnapshot(){
+  try{
+    var p = window.activeProject && window.activeProject(); if(!p) return;
+    var hasOwn = Array.isArray(p.pricebook) && p.pricebook.length;
+    if(!hasOwn && window.getTemplate){ p.pricebook = JSON.parse(JSON.stringify(window.getTemplate())); if(window.saveState) window.saveState(); else if(window.saveLocal) window.saveLocal(); if(window.syncProjectCloud) window.syncProjectCloud(p); }
+  }catch(e){ console.warn('GAMZ3 snapshot', e); }
+}
+function enhanceNow(){ try{ if(window.PBEDIT && window.PBEDIT.enhance) window.PBEDIT.enhance(); }catch(e){} }
+(function(){
+  var orig = window.toggleEdit;
+  if(typeof orig==='function' && !orig.__g3){
+    window.toggleEdit = function(){
+      var r = orig.apply(this, arguments);
+      try{
+        if(document.body.classList.contains('edit-mode')){
+          ensureSnapshot();
+          var p=window.activeProject&&window.activeProject();
+          if(p && window.renderSections) window.renderSections(p);
+          if(window.recalc) window.recalc();
+          setTimeout(enhanceNow, 30); setTimeout(enhanceNow, 200);
+        }
+      }catch(e){ console.warn('GAMZ3 toggleEdit', e); }
+      return r;
+    };
+    window.toggleEdit.__g3 = true;
+  }
+})();
+(function(){
+  var orig = window.renderSections;
+  if(typeof orig==='function' && !orig.__g3){
+    window.renderSections = function(){ var r = orig.apply(this, arguments); try{ if(document.body.classList.contains('edit-mode')){ setTimeout(enhanceNow, 20); } }catch(e){} return r; };
+    window.renderSections.__g3 = true;
+  }
+})();
+window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster:refreshMaster, renderMasterSection:renderMasterSection, ensureSnapshot:ensureSnapshot, enhanceNow:enhanceNow };
+})();
+</script>
+
 </body>
 </html>
