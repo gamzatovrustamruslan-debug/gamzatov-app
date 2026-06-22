@@ -1518,7 +1518,7 @@ let supa = null, currentUser = null, authMode = 'signin', _cloudTimer = null;
 function initSupabase(){
   if (supa) return supa;
   if (!window.supabase || !window.supabase.createClient) return null;
-  supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  supa = window.supabase.createClient(SUPA_URL, SUPA_KEY); try{window.__supa=supa;}catch(_g2e){}
   return supa;
 }
 function isUuid(s){ return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s||''); }
@@ -5817,5 +5817,323 @@ boot();
   window.PBEDIT=PB;
 })();
 </script>
+
+<style>
+.g2-card-host{ margin-top:6px; }
+.g2-card-block{ border:1px solid var(--line,#e2e8f0); border-radius:12px; padding:12px; margin:10px 0; background:#fff; }
+.g2-card-block.g2-card-private{ border-color:#f59e0b; background:#fffbeb; }
+.g2-card-bt{ font-weight:700; font-size:14px; margin-bottom:8px; color:#334155; }
+.g2-card-private .g2-card-bt{ color:#b45309; }
+.g2-card-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.g2-card-grid .field.full{ grid-column:1/-1; }
+.g2-card-grid label{ display:block; font-size:12px; color:#64748b; margin-bottom:3px; }
+.g2-card-grid input, .g2-card-grid select, .g2-card-grid textarea{ width:100%; box-sizing:border-box; padding:8px; border:1px solid var(--line,#d9dee5); border-radius:8px; font:inherit; }
+@media(max-width:640px){ .g2-card-grid{ grid-template-columns:1fr; } }
+.g2-ov{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:9999; padding:16px; }
+.g2-ov-box{ background:#fff; border-radius:16px; max-width:560px; width:100%; max-height:90vh; overflow:auto; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.g2-tpl-box{ max-width:860px; }
+.g2-ov-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.g2-x{ border:none; background:#f1f5f9; border-radius:8px; width:32px; height:32px; cursor:pointer; font-size:15px; }
+.g2-toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:#16a34a; color:#fff; padding:11px 18px; border-radius:10px; font-size:14px; z-index:10001; opacity:0; transition:opacity .25s; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+.g2-tpl-note{ font-size:13px; color:#475569; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; margin-bottom:10px; }
+.g2-tpl-scroll{ max-height:62vh; overflow:auto; }
+.g2-tpl-add{ display:flex; gap:8px; margin-top:12px; }
+.g2-st{ border:1px solid #cbd5e1; border-radius:10px; margin:8px 0; overflow:hidden; }
+.g2-st-h{ display:flex; align-items:center; gap:8px; background:#1e293b; color:#fff; padding:8px 10px; }
+.g2-st-t{ font-weight:700; flex:1; cursor:text; }
+.g2-st-body{ padding:8px 10px; }
+.g2-gr{ border:1px solid #e2e8f0; border-radius:8px; margin:6px 0; }
+.g2-gr-h{ display:flex; align-items:center; gap:8px; background:#eef2f7; padding:6px 8px; }
+.g2-gr-t{ font-weight:600; flex:1; cursor:text; }
+.g2-gr-body{ padding:6px 8px; }
+.g2-wk{ display:flex; align-items:center; gap:5px; padding:4px 0; flex-wrap:wrap; }
+.g2-wn{ flex:1; min-width:140px; }
+.g2-wu{ width:54px; }
+.g2-wc, .g2-wm{ width:80px; }
+.g2-mul{ color:#94a3b8; }
+.g2-wsum{ width:90px; text-align:right; font-weight:600; color:#0f172a; font-size:13px; }
+.g2-wk input{ padding:5px 7px; border:1px solid #d9dee5; border-radius:7px; font:13px inherit; box-sizing:border-box; }
+.g2-sum{ font-size:12px; opacity:.95; }
+.g2-st-h .g2-sum{ color:#cbd5e1; }
+.g2-tools{ display:inline-flex; gap:3px; }
+.g2-tb{ border:none; background:rgba(255,255,255,.15); color:inherit; width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:13px; }
+.g2-gr-h .g2-tb, .g2-wk .g2-tb{ background:#e2e8f0; color:#334155; }
+.g2-tb.g2-del{ background:#fee2e2; color:#b91c1c; width:auto; padding:0 7px; }
+.g2-tb.g2-arm{ background:#dc2626; color:#fff; }
+.g2-mini{ border:1px dashed #94a3b8; background:#f8fafc; color:#475569; border-radius:7px; padding:5px 10px; cursor:pointer; font-size:12px; margin-top:5px; }
+.g2-rename{ font:inherit; padding:4px 6px; border:1px solid #38bdf8; border-radius:6px; }
+</style>
+
+
+<script>
+(function(){
+'use strict';
+function sb(){ return window.__supa || null; }
+async function sbUser(){ try{ var c=sb(); if(!c) return null; var r=await c.auth.getUser(); return (r&&r.data&&r.data.user)?r.data.user.id:null; }catch(e){ return null; } }
+var CARD_BLOCKS = [
+  { title:'🏷️ Идентификация', priv:false, fields:[
+    ['custLast','Фамилия заказчика','text'],
+    ['custFirst','Имя','text'],
+    ['custMiddle','Отчество','text'],
+  ]},
+  { title:'📍 Локация', priv:false, fields:[
+    ['locCity','Город','text'],
+    ['locStreet','Улица','text'],
+    ['locHouse','Дом','text'],
+    ['locBuilding','Корпус','text'],
+    ['locLat','Широта','text'],
+    ['locLng','Долгота','text'],
+    ['locEntrance','Подъезд №','text'],
+    ['locFloor','Этаж №','text'],
+    ['locFlat','Квартира №','text'],
+  ]},
+  { title:'🔑 Доступ', priv:false, fields:[
+    ['accWay','Проход на объект',['через подъезд','через двор','через КПП','—']],
+    ['accDoorCode','Код двери подъезда','text'],
+    ['accIntercom','Домофон / ключи','text'],
+    ['accPass','Пропуск',['не требуется','нужен']],
+    ['accContact','Контакт на объекте (кто открывает)','textarea'],
+  ]},
+  { title:'🚚 Логистика и разгрузка', priv:false, fields:[
+    ['logUnload','Как разгружать',['через подъезд','через двор','—']],
+    ['logCarLimit','Ограничения по высоте/весу авто','text'],
+    ['logBarrier','Шлагбаум / въезд / парковка','textarea'],
+    ['logElevator','Лифты (грузовой/пассажирский, габариты)','textarea'],
+    ['logTrash','Куда складировать мусор/мешки','textarea'],
+  ]},
+  { title:'🤫 Режим работы (закон о тишине)', priv:false, fields:[
+    ['noiseDays','Дни и часы работ','text'],
+    ['noiseBreak','Шумовой перерыв (с — по)','text'],
+    ['noiseBan','Запрет шумных работ (выходные/праздники)','text'],
+    ['noiseQuiet','Тихие работы (условия)','textarea'],
+  ]},
+  { title:'⚙️ Особенности', priv:false, fields:[
+    ['features','Особенности объекта (мебель, животные, ремонт у соседей и т.д.)','textarea'],
+  ]},
+  { title:'🔒 ЛИЧНОЕ — НЕ идёт в сообщение мастеру', priv:true, fields:[
+    ['privPhone','Телефон заказчика','text'],
+    ['privContract','Номер договора','text'],
+    ['privNotes','Личные заметки','textarea'],
+  ]},
+];
+function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function cardOf(proj){ if(!proj.card || typeof proj.card!=='object') proj.card={}; return proj.card; }
+function fieldHTML(key, label, type, val){
+  var v = escA(val);
+  if(Array.isArray(type)){
+    var opts = type.map(function(o){ return '<option'+(String(val||'')===o?' selected':'')+'>'+escA(o)+'</option>'; }).join('');
+    return '<div class="field full"><label>'+escA(label)+'</label><select data-ck="'+key+'" onchange="GAMZ2.onCard(this)">'+opts+'</select></div>';
+  }
+  if(type==='textarea'){
+    return '<div class="field full"><label>'+escA(label)+'</label><textarea data-ck="'+key+'" oninput="GAMZ2.onCard(this)" rows="2">'+v+'</textarea></div>';
+  }
+  return '<div class="field"><label>'+escA(label)+'</label><input type="text" data-ck="'+key+'" oninput="GAMZ2.onCard(this)" value="'+v+'"></div>';
+}
+function blockHTML(blk, card){
+  var inner = blk.fields.map(function(f){ return fieldHTML(f[0], f[1], f[2], card[f[0]]); }).join('');
+  var cls = 'g2-card-block' + (blk.priv?' g2-card-private':'');
+  return '<div class="'+cls+'"><div class="g2-card-bt">'+escA(blk.title)+'</div><div class="proj-meta g2-card-grid">'+inner+'</div></div>';
+}
+function renderCard(proj){
+  var host = document.getElementById('g2CardHost');
+  if(!host){
+    var meta = document.querySelector('#projectScreen .proj-meta');
+    if(!meta) return;
+    host = document.createElement('div');
+    host.id='g2CardHost'; host.className='g2-card-host';
+    meta.parentNode.insertBefore(host, meta.nextSibling);
+  }
+  var card = cardOf(proj);
+  var btn = '<div style="margin:10px 0 4px"><button class="back-btn" style="background:#16a34a;color:#fff" onclick="GAMZ2.copyMaster()">📨 Сообщение мастеру/поставщику</button></div>';
+  host.innerHTML = btn + CARD_BLOCKS.map(function(b){ return blockHTML(b, card); }).join('');
+}
+function onCard(el){
+  var proj = window.activeProject && window.activeProject();
+  if(!proj) return;
+  var card = cardOf(proj);
+  card[el.getAttribute('data-ck')] = el.value;
+  if(window.saveState) window.saveState(); else if(window.saveLocal) window.saveLocal();
+  if(window.syncProjectCloud) window.syncProjectCloud(proj);
+}
+function buildMaster(proj){
+  var c = cardOf(proj);
+  function g(k){ return (c[k]||'').toString().trim(); }
+  var fio = [g('custLast'),g('custFirst'),g('custMiddle')].filter(Boolean).join(' ');
+  var addrParts = [g('locCity'),g('locStreet'),(g('locHouse')?'д.'+g('locHouse'):''),(g('locBuilding')?'к.'+g('locBuilding'):'')].filter(Boolean);
+  var addr = addrParts.join(', ') || (proj.address||'');
+  var coords = (g('locLat')&&g('locLng')) ? (g('locLat')+', '+g('locLng')) : '';
+  var L=[];
+  L.push('🔥 ОБЪЕКТ: '+ (proj.name||'—'));
+  if(fio) L.push('👤 Заказчик: '+fio);
+  if(addr) L.push('📍 Адрес: '+addr);
+  if(coords) L.push('🗺️ Координаты: '+coords);
+  var pef=[]; if(g('locEntrance'))pef.push('подъезд '+g('locEntrance')); if(g('locFloor'))pef.push('этаж '+g('locFloor')); if(g('locFlat'))pef.push('кв. '+g('locFlat'));
+  if(pef.length) L.push('🏠 '+pef.join(', '));
+  L.push('');
+  L.push('🔑 ДОСТУП');
+  if(g('accWay')) L.push('• Проход: '+g('accWay'));
+  if(g('accDoorCode')) L.push('• Код двери подъезда: '+g('accDoorCode'));
+  if(g('accIntercom')) L.push('• Домофон/ключи: '+g('accIntercom'));
+  if(g('accPass')) L.push('• Пропуск: '+g('accPass'));
+  if(g('accContact')) L.push('• Контакт на объекте: '+g('accContact'));
+  L.push('');
+  L.push('🚚 ЛОГИСТИКА');
+  if(g('logUnload')) L.push('• Разгрузка: '+g('logUnload'));
+  if(g('logCarLimit')) L.push('• Ограничения авто: '+g('logCarLimit'));
+  if(g('logBarrier')) L.push('• Шлагбаум/парковка: '+g('logBarrier'));
+  if(g('logElevator')) L.push('• Лифты: '+g('logElevator'));
+  if(g('logTrash')) L.push('• Мусор: '+g('logTrash'));
+  L.push('');
+  L.push('🛑 РЕЖИМ РАБОТЫ (закон о тишине)');
+  if(g('noiseDays')) L.push('• Дни/часы: '+g('noiseDays'));
+  if(g('noiseBreak')) L.push('• Шумовой перерыв: '+g('noiseBreak'));
+  if(g('noiseBan')) L.push('• Запрет шумных работ: '+g('noiseBan'));
+  if(g('noiseQuiet')) L.push('• Тихие работы: '+g('noiseQuiet'));
+  if(g('features')){ L.push(''); L.push('⚙️ ОСОБЕННОСТИ'); L.push(g('features')); }
+  while(L.length && L[L.length-1]==='') L.pop();
+  return L.join('\n');
+}
+function copyMaster(){
+  var proj = window.activeProject && window.activeProject();
+  if(!proj){ alert('Сначала откройте объект'); return; }
+  var txt = buildMaster(proj);
+  function done(){ G2toast('✅ Текст скопирован — вставьте мастеру/поставщику'); }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done, function(){ fallbackCopy(txt); done(); }); }
+  else { fallbackCopy(txt); done(); }
+  showMasterPreview(txt);
+}
+function fallbackCopy(txt){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
+function showMasterPreview(txt){
+  var ov=document.getElementById('g2MasterOv');
+  if(!ov){ ov=document.createElement('div'); ov.id='g2MasterOv'; ov.className='g2-ov'; document.body.appendChild(ov); }
+  ov.innerHTML='<div class="g2-ov-box"><div class="g2-ov-h"><b>📨 Сообщение для мастера/поставщика</b><button onclick="GAMZ2.closeMaster()" class="g2-x">✕</button></div>'
+    +'<div style="font-size:12px;color:#64748b;margin:6px 0">Личные данные (телефон, договор, заметки) НЕ включены.</div>'
+    +'<textarea id="g2MasterTa" rows="16" style="width:100%;font:13px/1.45 monospace;padding:10px;border:1px solid #d9dee5;border-radius:8px;box-sizing:border-box"></textarea>'
+    +'<div style="margin-top:10px;display:flex;gap:8px"><button class="back-btn" style="background:#16a34a;color:#fff" onclick="GAMZ2.copyAgain()">📋 Скопировать ещё раз</button><button class="back-btn" onclick="GAMZ2.closeMaster()">Закрыть</button></div></div>';
+  document.getElementById('g2MasterTa').value=txt;
+  ov.style.display='flex';
+}
+function closeMaster(){ var ov=document.getElementById('g2MasterOv'); if(ov) ov.style.display='none'; }
+function copyAgain(){ var ta=document.getElementById('g2MasterTa'); if(ta){ fallbackCopy(ta.value); G2toast('✅ Скопировано'); } }
+function G2toast(msg){ var t=document.getElementById('g2Toast'); if(!t){ t=document.createElement('div'); t.id='g2Toast'; t.className='g2-toast'; document.body.appendChild(t); } t.textContent=msg; t.style.opacity='1'; clearTimeout(t.__h); t.__h=setTimeout(function(){ t.style.opacity='0'; }, 2200); }
+window.GAMZ2 = { renderCard:renderCard, onCard:onCard, copyMaster:copyMaster, closeMaster:closeMaster, copyAgain:copyAgain, buildMaster:buildMaster, _cardOf:cardOf, _sb:sb, _sbUser:sbUser, _toast:G2toast };
+(function(){
+  var orig = window.renderProject;
+  if(typeof orig==='function' && !orig.__g2){
+    window.renderProject = function(){ var r = orig.apply(this, arguments); try{ var p=window.activeProject&&window.activeProject(); if(p) renderCard(p); }catch(e){ console.warn('GAMZ2 renderCard', e); } return r; };
+    window.renderProject.__g2 = true;
+  }
+})();
+
+(function(){
+var LS_KEY = 'gamz_pricebook_tpl_v1';
+function tpl(){ return (window.getTemplate && window.getTemplate()) || []; }
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function uid(){ return 's'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36); }
+function num(v){ var n=parseFloat(String(v).replace(',','.')); return isNaN(n)?0:n; }
+function money(n){ try{ return (Math.round(n*100)/100).toLocaleString('ru-RU'); }catch(e){ return String(n); } }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function workSum(w){ return num(w.c)*num(w.m); }
+function groupSum(g){ return (g.w||[]).reduce(function(s,w){ return s+workSum(w); },0); }
+function stageSum(st){ return (st.g||[]).reduce(function(s,g){ return s+groupSum(g); },0); }
+function totalSum(){ return tpl().reduce(function(s,st){ return s+stageSum(st); },0); }
+function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(tpl())); }catch(e){} }
+async function saveCloud(){
+  try{
+    var c = window.GAMZ2 && window.GAMZ2._sb && window.GAMZ2._sb(); if(!c) return;
+    var uidU = await window.GAMZ2._sbUser(); if(!uidU) return;
+    await c.from('app_settings').upsert({ owner_id: uidU, pricebook: tpl(), updated_at: new Date().toISOString() }, { onConflict:'owner_id' });
+  }catch(e){ console.warn('tpl saveCloud', e); }
+}
+function persist(){ saveLocal(); saveCloud(); }
+function applyLoaded(arr){ if(!Array.isArray(arr) || !arr.length) return; var t=tpl(); t.length=0; arr.forEach(function(x){ t.push(x); }); }
+async function loadCloud(){
+  try{
+    var c = window.GAMZ2 && window.GAMZ2._sb && window.GAMZ2._sb(); if(!c){ loadLocalOnly(); return; }
+    var uidU = await window.GAMZ2._sbUser(); if(!uidU){ loadLocalOnly(); return; }
+    var r = await c.from('app_settings').select('pricebook').eq('owner_id', uidU).maybeSingle();
+    if(r && r.data && Array.isArray(r.data.pricebook) && r.data.pricebook.length){ applyLoaded(r.data.pricebook); saveLocal(); reRenderActive(); }
+    else { loadLocalOnly(); }
+  }catch(e){ loadLocalOnly(); }
+}
+function loadLocalOnly(){ try{ var s=localStorage.getItem(LS_KEY); if(s){ var a=JSON.parse(s); applyLoaded(a); reRenderActive(); } }catch(e){} }
+function reRenderActive(){ try{ var p=window.activeProject&&window.activeProject(); if(p && window.renderSections) window.renderSections(p); if(window.recalc) window.recalc(); }catch(e){} }
+var armed = null;
+function openTpl(){ var ov=document.getElementById('g2TplOv'); if(!ov){ ov=document.createElement('div'); ov.id='g2TplOv'; ov.className='g2-ov'; document.body.appendChild(ov); } ov.style.display='flex'; drawTpl(); }
+function closeTpl(){ var ov=document.getElementById('g2TplOv'); if(ov) ov.style.display='none'; armed=null; }
+function drawTpl(){
+  var ov=document.getElementById('g2TplOv'); if(!ov) return;
+  var t=tpl();
+  var rows = t.map(function(st,si){ return stageHTML(st,si); }).join('');
+  ov.innerHTML='<div class="g2-ov-box g2-tpl-box">'
+    +'<div class="g2-ov-h"><b>📋 Общий шаблон сметы (эталон)</b><button class="g2-x" onclick="GAMZTPL.close()">✕</button></div>'
+    +'<div class="g2-tpl-note">Правки шаблона применяются к НОВЫМ объектам. Существующие объекты не меняются автоматически. ИТОГО по шаблону: <b>'+money(totalSum())+' ₽</b></div>'
+    +'<div class="g2-tpl-scroll">'+rows+'</div>'
+    +'<div class="g2-tpl-add"><button class="back-btn" onclick="GAMZTPL.addStage()">➕ Добавить ЭТАП</button><button class="back-btn" onclick="GAMZTPL.close()">Готово</button></div></div>';
+}
+function stageHTML(st,si){
+  var groups=(st.g||[]).map(function(g,gi){ return groupHTML(g,si,gi); }).join('');
+  return '<div class="g2-st"><div class="g2-st-h"><span class="g2-st-t" title="двойной клик — переименовать" ondblclick="GAMZTPL.renameStage('+si+')">'+esc(st.t||'(этап)')+'</span><span class="g2-sum">'+money(stageSum(st))+' ₽</span><span class="g2-tools">'+toolBtns('stage',si,-1,-1)+'</span></div><div class="g2-st-body">'+groups+'<button class="g2-mini" onclick="GAMZTPL.addGroup('+si+')">➕ Добавить ПОДЭТАП</button></div></div>';
+}
+function groupHTML(g,si,gi){
+  var works=(g.w||[]).map(function(w,wi){ return workHTML(w,si,gi,wi); }).join('');
+  return '<div class="g2-gr"><div class="g2-gr-h"><span class="g2-gr-t" ondblclick="GAMZTPL.renameGroup('+si+','+gi+')">'+esc(g.t||'(подэтап)')+'</span><span class="g2-sum">'+money(groupSum(g))+' ₽</span><span class="g2-tools">'+toolBtns('group',si,gi,-1)+'</span></div><div class="g2-gr-body">'+works+'<button class="g2-mini" onclick="GAMZTPL.addWork('+si+','+gi+')">➕ Добавить НАИМЕНОВАНИЕ</button></div></div>';
+}
+function workHTML(w,si,gi,wi){
+  var k=si+'_'+gi+'_'+wi;
+  return '<div class="g2-wk" data-k="'+k+'"><input class="g2-wn" value="'+esc(w.n)+'" placeholder="наименование" oninput="GAMZTPL.setW('+si+','+gi+','+wi+',\'n\',this.value)"><input class="g2-wu" value="'+esc(w.u)+'" placeholder="ед." oninput="GAMZTPL.setW('+si+','+gi+','+wi+',\'u\',this.value)"><input class="g2-wc" type="number" value="'+esc(w.c)+'" placeholder="цена" oninput="GAMZTPL.setW('+si+','+gi+','+wi+',\'c\',this.value)"><span class="g2-mul">×</span><input class="g2-wm" type="number" value="'+esc(w.m)+'" placeholder="объём" oninput="GAMZTPL.setW('+si+','+gi+','+wi+',\'m\',this.value)"><span class="g2-wsum">'+money(workSum(w))+'</span><span class="g2-tools">'+toolBtns('work',si,gi,wi)+'</span></div>';
+}
+function toolBtns(level,si,gi,wi){
+  return '<button class="g2-tb" title="вверх" onclick="GAMZTPL.move(\''+level+'\','+si+','+gi+','+wi+',-1)">↑</button><button class="g2-tb" title="вниз" onclick="GAMZTPL.move(\''+level+'\','+si+','+gi+','+wi+',1)">↓</button><button class="g2-tb g2-del" title="удалить" onclick="GAMZTPL.del(\''+level+'\','+si+','+gi+','+wi+',this)">🗑</button>';
+}
+function setW(si,gi,wi,field,val){ var w=tpl()[si].g[gi].w[wi]; if(!w) return; w[field]=(field==='c'||field==='m')?num(val):val; updateSums(); persist(); }
+function updateSums(){
+  var ov=document.getElementById('g2TplOv'); if(!ov) return; var t=tpl();
+  ov.querySelectorAll('.g2-wk').forEach(function(el){ var p=el.getAttribute('data-k').split('_'); var w=t[+p[0]].g[+p[1]].w[+p[2]]; if(w) el.querySelector('.g2-wsum').textContent=money(workSum(w)); });
+  var note=ov.querySelector('.g2-tpl-note b'); if(note) note.textContent=money(totalSum())+' ₽';
+  t.forEach(function(st,si){ var stEl=ov.querySelectorAll('.g2-st')[si]; if(!stEl) return; var ss=stEl.querySelector('.g2-st-h .g2-sum'); if(ss) ss.textContent=money(stageSum(st))+' ₽'; (st.g||[]).forEach(function(g,gi){ var grEl=stEl.querySelectorAll('.g2-gr')[gi]; if(!grEl) return; var gs=grEl.querySelector('.g2-gr-h .g2-sum'); if(gs) gs.textContent=money(groupSum(g))+' ₽'; }); });
+}
+function renameStage(si){ inlineRename(tpl()[si],'t',si,-1); }
+function renameGroup(si,gi){ inlineRename(tpl()[si].g[gi],'t',si,gi); }
+function inlineRename(obj,field,si,gi){
+  var cur=obj[field]||''; var ov=document.getElementById('g2TplOv'); var span;
+  if(gi<0){ span=ov.querySelectorAll('.g2-st')[si].querySelector('.g2-st-t'); } else { span=ov.querySelectorAll('.g2-st')[si].querySelectorAll('.g2-gr')[gi].querySelector('.g2-gr-t'); }
+  if(!span) return;
+  var inp=document.createElement('input'); inp.className='g2-rename'; inp.value=cur; span.replaceWith(inp); inp.focus(); inp.select();
+  var done=false;
+  function commit(){ if(done) return; done=true; obj[field]=inp.value.trim()||cur; persist(); drawTpl(); }
+  inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ commit(); } else if(e.key==='Escape'){ done=true; drawTpl(); } });
+  inp.addEventListener('blur', commit);
+}
+function move(level,si,gi,wi,dir){
+  var arr; if(level==='stage'){ arr=tpl(); wi=si; } else if(level==='group'){ arr=tpl()[si].g; wi=gi; } else { arr=tpl()[si].g[gi].w; }
+  var idx=wi, ni=idx+dir; if(ni<0||ni>=arr.length) return; var tmp=arr[idx]; arr[idx]=arr[ni]; arr[ni]=tmp; persist(); drawTpl();
+}
+function del(level,si,gi,wi,btn){
+  var key=level+si+'_'+gi+'_'+wi;
+  if(armed!==key){ armed=key; if(btn){ btn.textContent='Точно?'; btn.classList.add('g2-arm'); } setTimeout(function(){ if(armed===key){ armed=null; try{btn.textContent='🗑'; btn.classList.remove('g2-arm');}catch(e){} } },2500); return; }
+  armed=null;
+  if(level==='stage'){ tpl().splice(si,1); } else if(level==='group'){ tpl()[si].g.splice(gi,1); } else { tpl()[si].g[gi].w.splice(wi,1); }
+  persist(); drawTpl();
+}
+function addStage(){ tpl().push({ id:uid(), t:'Новый этап', g:[] }); persist(); drawTpl(); }
+function addGroup(si){ if(!tpl()[si].g) tpl()[si].g=[]; tpl()[si].g.push({ t:'Новый подэтап', w:[] }); persist(); drawTpl(); }
+function addWork(si,gi){ var g=tpl()[si].g[gi]; if(!g.w) g.w=[]; g.w.push({ n:'Новое наименование', u:'шт', m:1, c:0 }); persist(); drawTpl(); }
+window.GAMZTPL = { open:openTpl, close:closeTpl, draw:drawTpl, setW:setW, renameStage:renameStage, renameGroup:renameGroup, move:move, del:del, addStage:addStage, addGroup:addGroup, addWork:addWork, _load:loadCloud, _persist:persist, _totalSum:totalSum };
+function injectTplBtn(){ var bar=document.querySelector('.hdr-actions'); if(!bar || document.getElementById('g2TplBtn')) return; var b=document.createElement('button'); b.id='g2TplBtn'; b.className='back-btn'; b.textContent='📋 Смета'; b.onclick=function(){ openTpl(); }; bar.insertBefore(b, bar.firstChild); }
+var obs=new MutationObserver(function(){ injectTplBtn(); }); obs.observe(document.documentElement,{childList:true,subtree:true}); injectTplBtn();
+(function(){
+  var oc=window.createObject;
+  if(typeof oc==='function' && !oc.__g2tpl){
+    window.createObject=function(){ var r; try{ r=oc.apply(this,arguments); }catch(e){} try{ var p=window.activeProject&&window.activeProject(); if(p && (!Array.isArray(p.pricebook) || !p.pricebook.length)){ p.pricebook=clone(tpl()); if(window.saveState) window.saveState(); else if(window.saveLocal) window.saveLocal(); if(window.syncProjectCloud) window.syncProjectCloud(p); if(window.renderSections) window.renderSections(p); if(window.recalc) window.recalc(); } }catch(e){ console.warn('GAMZ2 tpl->newObj', e); } return r; };
+    window.createObject.__g2tpl=true;
+  }
+})();
+setTimeout(loadCloud, 1500);
+})();
+
+})();
+</script>
+
 </body>
 </html>
