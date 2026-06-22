@@ -5408,7 +5408,7 @@ window.EST = (function(){
 (function(){
   if (!window.EST) { console.warn('ESTUI: EST (БЛОК 1) не найден'); }
 
-  var ST = { objectId: null, title: '', data: [], open: {} };
+  var ST = { objectId: null, title: '', data: [], open: {}, pend: null };
 
   function n(v){ var x = parseFloat(v); return isNaN(x) ? 0 : x; }
   function fmt(v){ return n(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 }); }
@@ -5422,37 +5422,37 @@ window.EST = (function(){
   function findStage(id){ for (var i=0;i<ST.data.length;i++) if (ST.data[i].id===id) return {st:ST.data[i], si:i}; return null; }
   function findSub(stage, id){ for (var j=0;j<stage.g.length;j++) if (stage.g[j].id===id) return {sub:stage.g[j], gi:j}; return null; }
 
-  function addStage(){ ST.data.push({ id:uid('s'), t:'Новый этап', g:[] }); render(); }
-  function delStage(id){ var f=findStage(id); if(!f) return; if(!confirm('Удалить этап со всеми подэтапами?')) return; ST.data.splice(f.si,1); render(); }
+  function addStage(){ ST.pend=null; ST.data.push({ id:uid('s'), t:'Новый этап', g:[] }); render(); }
+  function delStage(id){ var f=findStage(id); if(!f) return; if(ST.pend!=='S:'+id){ ST.pend='S:'+id; render(); return; } ST.pend=null; ST.data.splice(f.si,1); render(); }
   function moveStage(id, dir){
-    var f=findStage(id); if(!f) return; var j=f.si+dir;
+    ST.pend=null; var f=findStage(id); if(!f) return; var j=f.si+dir;
     if (j<0||j>=ST.data.length) return;
     var a=ST.data; var tmp=a[f.si]; a[f.si]=a[j]; a[j]=tmp; render();
   }
   function renameStage(id, val){ var f=findStage(id); if(f) f.st.t=val; }
 
-  function addSub(stageId){ var f=findStage(stageId); if(!f) return; f.st.g.push({ id:uid('g'), t:'Новый подэтап', w:[] }); ST.open[f.st.id]=true; render(); }
-  function delSub(stageId, subId){ var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return; if(!confirm('Удалить подэтап?')) return; f.st.g.splice(s.gi,1); render(); }
+  function addSub(stageId){ ST.pend=null; var f=findStage(stageId); if(!f) return; f.st.g.push({ id:uid('g'), t:'Новый подэтап', w:[] }); ST.open[f.st.id]=true; render(); }
+  function delSub(stageId, subId){ var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return; if(ST.pend!=='G:'+subId){ ST.pend='G:'+subId; render(); return; } ST.pend=null; f.st.g.splice(s.gi,1); render(); }
   function moveSub(stageId, subId, dir){
-    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    ST.pend=null; var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
     var j=s.gi+dir; if(j<0||j>=f.st.g.length) return;
     var a=f.st.g; var tmp=a[s.gi]; a[s.gi]=a[j]; a[j]=tmp; render();
   }
   function renameSub(stageId, subId, val){ var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(s) s.sub.t=val; }
 
   function addItem(stageId, subId){
-    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    ST.pend=null; var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
     s.sub.w.push({ id:uid('w'), n:'Новое наименование', u:'шт', m:0, c:0, qty:0 });
     ST.open[f.st.id]=true; ST.open[subId]=true; render();
   }
   function delItem(stageId, subId, itemId){
     var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
-    if(!confirm('Удалить наименование?')) return;
+    if(ST.pend!=='W:'+itemId){ ST.pend='W:'+itemId; render(); return; } ST.pend=null;
     for (var k=0;k<s.sub.w.length;k++){ if(s.sub.w[k].id===itemId){ s.sub.w.splice(k,1); break; } }
     render();
   }
   function moveItem(stageId, subId, itemId, dir){
-    var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
+    ST.pend=null; var f=findStage(stageId); if(!f) return; var s=findSub(f.st,subId); if(!s) return;
     var w=s.sub.w, idx=-1; for (var k=0;k<w.length;k++) if(w[k].id===itemId){ idx=k; break; }
     if (idx<0) return; var j=idx+dir; if(j<0||j>=w.length) return;
     var tmp=w[idx]; w[idx]=w[j]; w[j]=tmp; render();
@@ -5467,7 +5467,7 @@ window.EST = (function(){
     recalcSums();
   }
 
-  function toggle(id){ ST.open[id]=!ST.open[id]; render(); }
+  function toggle(id){ ST.pend=null; ST.open[id]=!ST.open[id]; render(); }
 
   function recalcSums(){
     if (!window.EST) return;
@@ -5505,7 +5505,9 @@ window.EST = (function(){
       html += '    <span class="estui-sum" data-stagesum="'+st.id+'">'+fmt(stSum)+' ₽</span>';
       html += '    <span class="estui-mv" onclick="ESTUI._ms(\''+st.id+'\',-1)" title="Вверх">▲</span>';
       html += '    <span class="estui-mv" onclick="ESTUI._ms(\''+st.id+'\',1)" title="Вниз">▼</span>';
-      html += '    <span class="estui-del" onclick="ESTUI._ds(\''+st.id+'\')" title="Удалить этап">🗑</span>';
+      html += (ST.pend==='S:'+st.id)
+          ? '    <span class="estui-del confirm" onclick="ESTUI._ds(\''+st.id+'\')">Точно?</span>'
+          : '    <span class="estui-del" onclick="ESTUI._ds(\''+st.id+'\')" title="Удалить этап">🗑</span>';
       html += '  </div>';
       if (stOpen){
         html += '  <div class="estui-stage-b">';
@@ -5519,7 +5521,9 @@ window.EST = (function(){
           html += '      <span class="estui-sum" data-subsum="'+sub.id+'">'+fmt(sbSum)+' ₽</span>';
           html += '      <span class="estui-mv" onclick="ESTUI._mg(\''+st.id+'\',\''+sub.id+'\',-1)">▲</span>';
           html += '      <span class="estui-mv" onclick="ESTUI._mg(\''+st.id+'\',\''+sub.id+'\',1)">▼</span>';
-          html += '      <span class="estui-del" onclick="ESTUI._dg(\''+st.id+'\',\''+sub.id+'\')" title="Удалить подэтап">🗑</span>';
+          html += (ST.pend==='G:'+sub.id)
+            ? '      <span class="estui-del confirm" onclick="ESTUI._dg(\''+st.id+'\',\''+sub.id+'\')">Точно?</span>'
+            : '      <span class="estui-del" onclick="ESTUI._dg(\''+st.id+'\',\''+sub.id+'\')" title="Удалить подэтап">🗑</span>';
           html += '    </div>';
           if (sbOpen){
             html += '    <div class="estui-sub-b">';
@@ -5535,7 +5539,9 @@ window.EST = (function(){
               html += '        <span class="estui-irow-ctl">';
               html += '          <span class="estui-mv" onclick="ESTUI._mi(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',-1)">▲</span>';
               html += '          <span class="estui-mv" onclick="ESTUI._mi(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\',1)">▼</span>';
-              html += '          <span class="estui-del" onclick="ESTUI._di(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\')">🗑</span>';
+              html += (ST.pend==='W:'+it.id)
+                ? '          <span class="estui-del confirm" onclick="ESTUI._di(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\')">Точно?</span>'
+                : '          <span class="estui-del" onclick="ESTUI._di(\''+st.id+'\',\''+sub.id+'\',\''+it.id+'\')">🗑</span>';
               html += '        </span>';
               html += '      </div>';
             });
@@ -5561,7 +5567,7 @@ window.EST = (function(){
   async function open(objectId, title){
     ST.objectId = (objectId==null ? null : String(objectId));
     ST.title = title || (objectId==null ? 'Шаблон сметы' : 'Смета объекта');
-    ST.open = {};
+    ST.open = {}; ST.pend = null;
     ensureOverlay();
     var box = document.getElementById('estuiBox');
     box.innerHTML = '<div class="estui-loading">Загрузка…</div>';
@@ -5644,6 +5650,7 @@ window.EST = (function(){
   + '.estui-mv{cursor:pointer;color:#90a4ae;font-size:12px;padding:2px 3px;user-select:none;}'
   + '.estui-mv:active{color:#1976D2;}'
   + '.estui-del{cursor:pointer;font-size:13px;padding:2px 3px;}'
+  + '.estui-del.confirm{background:#C62828;color:#fff;border-radius:6px;padding:3px 7px;font-size:11px;font-weight:700;white-space:nowrap;}'
   + '.estui-iname{min-width:0;border:1px solid #e0e0e0;border-radius:6px;padding:6px;font-size:12px;font-family:inherit;background:#fff;}'
   + '.estui-num{min-width:0;width:100%;border:1px solid #BBDEFB;border-radius:6px;padding:6px 4px;font-size:12px;font-family:inherit;text-align:center;background:#E3F2FD;color:#0D47A1;font-weight:700;}'
   + '.estui-unit{min-width:0;width:100%;border:1px solid #e0e0e0;border-radius:6px;padding:6px 2px;font-size:11px;font-family:inherit;text-align:center;background:#fff;}'
