@@ -5368,15 +5368,18 @@ window.EST = (function(){
     if (!supa || !currentUser) return false;
     try {
       ensureIds(structure);
-      var row = {
-        owner_id: currentUser.id,
-        object_id: (objectId == null) ? null : String(objectId),
-        structure: structure,
-        updated_at: new Date().toISOString()
-      };
-      var res = await supa.from('estimates')
-        .upsert(row, { onConflict: (objectId == null) ? 'owner_id' : 'owner_id,object_id' });
-      if (res.error){ console.warn('EST.save error', res.error); return false; }
+      var oid = (objectId == null) ? null : String(objectId);
+      var q = supa.from('estimates').select('id').eq('owner_id', currentUser.id);
+      q = (oid == null) ? q.is('object_id', null) : q.eq('object_id', oid);
+      var found = await q.maybeSingle();
+      if (found.error){ console.warn('EST.save find error', found.error); return false; }
+      var res;
+      if (found.data && found.data.id){
+        res = await supa.from('estimates').update({ structure: structure, updated_at: new Date().toISOString() }).eq('id', found.data.id);
+      } else {
+        res = await supa.from('estimates').insert({ owner_id: currentUser.id, object_id: oid, structure: structure, updated_at: new Date().toISOString() });
+      }
+      if (res.error){ console.warn('EST.save write error', res.error); return false; }
       return true;
     } catch(e){ console.warn('EST.save exception', e); return false; }
   }
