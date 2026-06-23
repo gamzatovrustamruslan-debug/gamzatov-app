@@ -7394,6 +7394,112 @@ document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }
 })();
 
 </script>
+
+
+<script>
+/* MTFIX3: master picker width fix + act stage/work selection + move Sroki button */
+(function(){
+  if(window.__MTFIX3) return; window.__MTFIX3=true;
+  function getSTATE(){ try{ return (new Function('return (typeof STATE!=="undefined"&&STATE)?STATE:null'))(); }catch(e){ return null; } }
+
+  /* ---------- (A) Fix master select width in task form ---------- */
+  function fixMasterWidth(){
+    var tk=document.getElementById('tkMaster');
+    if(!tk) return;
+    if(tk.getAttribute('data-mtf3w')==='1' && tk.getBoundingClientRect().width>40) return;
+    var ts=document.getElementById('tkStage');
+    var w = ts ? Math.round(ts.getBoundingClientRect().width) : 0;
+    var wrap=document.getElementById('tkMasterWrap');
+    if(wrap){ wrap.classList.remove('modal-field'); wrap.style.removeProperty('width'); wrap.style.display='block'; }
+    tk.style.setProperty('display','block','important');
+    tk.style.setProperty('box-sizing','border-box','important');
+    tk.style.setProperty('max-width','100%','important');
+    if(w>40){ tk.style.setProperty('width', w+'px', 'important'); }
+    else { tk.style.setProperty('width','100%','important'); tk.style.setProperty('min-width','220px','important'); }
+    if(ts){ var h=Math.round(ts.getBoundingClientRect().height); if(h>10) tk.style.setProperty('height', h+'px','important'); }
+    if(tk.getBoundingClientRect().width>40) tk.setAttribute('data-mtf3w','1');
+  }
+
+  /* ---------- (C) Move Sroki (showGantt) button next to Shapka obyekta ---------- */
+  function moveSroki(){
+    var ps=document.getElementById('projectScreen');
+    if(!ps) return;
+    if(ps.querySelector('.mtf3-sroki-top')) return;
+    var gantt=ps.querySelector('.doc-btn.gantt');
+    if(!gantt) gantt=Array.prototype.slice.call(ps.querySelectorAll('[onclick]')).filter(function(b){return (b.getAttribute('onclick')||'').indexOf('showGantt')>=0;})[0];
+    if(!gantt) return;
+    var anchor=ps.querySelector('.rooms-top-btn');
+    if(!anchor) anchor=Array.prototype.slice.call(ps.querySelectorAll('[onclick]')).filter(function(b){return (b.getAttribute('onclick')||'').indexOf('openRoomsHeader')>=0;})[0];
+    if(!anchor) return;
+    var topBtn=gantt.cloneNode(true);
+    topBtn.setAttribute('data-mtf3-moved','1');
+    topBtn.removeAttribute('onclick');
+    topBtn.className='rooms-top-btn mtf3-sroki-top';
+    topBtn.style.cssText='margin-top:6px;';
+    topBtn.onclick=function(e){ if(e){e.preventDefault();e.stopPropagation();} try{ window.showGantt&&window.showGantt(); }catch(err){} };
+    if(anchor.nextSibling) anchor.parentNode.insertBefore(topBtn, anchor.nextSibling);
+    else anchor.parentNode.appendChild(topBtn);
+    gantt.style.display='none';
+  }
+
+  /* ---------- (B) Act form: stage grouping + per-work selection ---------- */
+  function activeActProject(keys){
+    var ST=getSTATE(); if(!ST||!ST.projects) return null;
+    var found=null;
+    ST.projects.forEach(function(p){
+      var wk=(p.works||[]).map(function(w){return w.key;});
+      if(keys.length && keys.every(function(k){return wk.indexOf(k)>=0;})) found=p;
+    });
+    return found;
+  }
+  function stageName(p,si){ var e=p&&p.pricebook&&p.pricebook[si]; return (e&&e.t)?e.t:('\u042d\u0442\u0430\u043f '+si); }
+
+  function decorateActForm(){
+    var mb=document.getElementById('modalBox'); if(!mb) return;
+    var cont=mb.querySelector('.act-lines'); if(!cont) return;
+    if(cont.getAttribute('data-mtf3')==='1') return;
+    var lines=Array.prototype.slice.call(cont.querySelectorAll('.act-line'));
+    if(!lines.length) return;
+    var keys=lines.map(function(l){return l.getAttribute('data-key');});
+    var p=activeActProject(keys); if(!p){ return; }
+    cont.setAttribute('data-mtf3','1');
+    var byKey={}; (p.works||[]).forEach(function(w){byKey[w.key]=w;});
+    var groups={}, order=[];
+    lines.forEach(function(l){ var w=byKey[l.getAttribute('data-key')]; var si=w?w.si:'-'; if(!(si in groups)){groups[si]=[];order.push(si);} groups[si].push({l:l,w:w}); });
+    order.forEach(function(si){
+      var hdr=document.createElement('div');
+      hdr.className='mtf3-stage-hdr'; hdr.setAttribute('data-mtf3','1');
+      hdr.style.cssText='font-weight:700;margin:12px 0 4px;padding:7px 9px;background:#eef3ff;border:1px solid #d6e2ff;border-radius:8px;display:flex;align-items:center;gap:9px;';
+      var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=true; cb.className='mtf3-stage-cb'; cb.style.cssText='transform:scale(1.25);flex:0 0 auto;';
+      var lbl=document.createElement('span'); lbl.textContent=stageName(p,+si);
+      hdr.appendChild(cb); hdr.appendChild(lbl);
+      groups[si][0].l.parentNode.insertBefore(hdr, groups[si][0].l);
+      groups[si].forEach(function(o){
+        var l=o.l;
+        if(l.querySelector('.mtf3-line-cb')) return;
+        var lcb=document.createElement('input'); lcb.type='checkbox'; lcb.checked=true; lcb.className='mtf3-line-cb';
+        lcb.style.cssText='margin-right:9px;transform:scale(1.3);flex:0 0 auto;';
+        l.insertBefore(lcb, l.firstChild);
+        var inp=l.querySelector('.act-line-qty');
+        var w=o.w;
+        lcb.addEventListener('change', function(){
+          if(lcb.checked){ inp.disabled=false; if(inp.value==='0'||inp.value===''){ inp.value=(w?w.qty:0); } }
+          else { inp.value=0; inp.disabled=true; }
+          try{ window.updateActTotal && window.updateActTotal(); }catch(e){}
+        });
+      });
+      cb.addEventListener('change', function(){
+        groups[si].forEach(function(o){ var x=o.l.querySelector('.mtf3-line-cb'); if(x && x.checked!==cb.checked){ x.checked=cb.checked; x.dispatchEvent(new Event('change',{bubbles:true})); } });
+      });
+    });
+  }
+
+  function tick(){ try{ fixMasterWidth(); }catch(e){} try{ moveSroki(); }catch(e){} try{ decorateActForm(); }catch(e){} }
+  setInterval(tick, 700);
+  document.addEventListener('click', function(){ setTimeout(tick, 120); setTimeout(tick, 420); }, true);
+  tick();
+})();
+</script>
 </body>
 </html>
 
