@@ -7335,6 +7335,65 @@ var kaA=setInterval(wireActsBtn,1500); wireActsBtn(); setTimeout(wireActsBtn,400
 })();
 
 </script>
+
+<script>
+
+(function(){
+if(window.__TASKSEND)return; window.__TASKSEND=1;
+
+function GS(){try{return (new Function('return (typeof STATE!=="undefined"&&STATE)?STATE:null'))();}catch(e){return null;}}
+function activeProj(){var S=GS();return S?S.projects.find(function(x){return x.id===S.activeId;}):null;}
+function findTask(id){var p=activeProj();return p?(p.tasks||[]).find(function(t){return t.id===id;}):null;}
+function normPhone(ph){ph=(ph||'').replace(/[^0-9]/g,'');if(ph.length===11&&ph.charAt(0)==='8')ph='7'+ph.slice(1);return ph;}
+function taskMessage(t){
+  var p=activeProj(); var L=[];
+  L.push('\u041f\u0440\u043e\u0440\u0430\u0431/\u0437\u0430\u0434\u0430\u043d\u0438\u0435: '+(t.title||''));
+  if(p&&p.name) L.push('\u041e\u0431\u044a\u0435\u043a\u0442: '+p.name);
+  if(p&&p.address) L.push('\u0410\u0434\u0440\u0435\u0441: '+p.address);
+  if(t.masterName) L.push('\u041c\u0430\u0441\u0442\u0435\u0440: '+t.masterName);
+  if(t.due) L.push('\u0421\u0440\u043e\u043a: '+t.due);
+  if(t.note) L.push('\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439: '+t.note);
+  return L.join('\n');
+}
+function openWA(t){ var msg=taskMessage(t); var ph=normPhone(t.masterPhone); var url='https://wa.me/'+ph+'?text='+encodeURIComponent(msg); window.open(url,'_blank'); }
+function openTG(t){ var msg=taskMessage(t); var url='https://t.me/share/url?url='+encodeURIComponent(' ')+'&text='+encodeURIComponent(msg); window.open(url,'_blank'); }
+
+function decorateTasks(){
+  var rows=[].slice.call(document.querySelectorAll('.task-row'));
+  rows.forEach(function(row){
+    if(row.getAttribute('data-mt-dec')) return;
+    var main=row.querySelector('.task-main'); if(!main) return;
+    var oc=main.getAttribute('onclick')||''; var m=oc.match(/taskForm\(['"]([^'"]+)['"]\)/); if(!m) return;
+    var id=m[1]; var t=findTask(id); if(!t) return;
+    row.setAttribute('data-mt-dec','1');
+    var meta=main.querySelector('.task-meta')||main;
+    if(t.masterName){
+      var b=document.createElement('div'); b.className='mt-row-master';
+      b.style.cssText='font-size:12px;color:#1565C0;font-weight:600;margin-top:3px';
+      b.textContent='\ud83d\udc77 '+t.masterName+(t.masterPhone?(' \u00b7 '+t.masterPhone):'');
+      meta.appendChild(b);
+    }
+    var bar=document.createElement('div'); bar.className='mt-send-bar';
+    bar.style.cssText='display:flex;gap:6px;margin-top:6px;flex-wrap:wrap';
+    var wa=document.createElement('button'); wa.type='button'; wa.textContent='\ud83d\udcac WhatsApp';
+    wa.style.cssText='background:#25D366;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer';
+    var tg=document.createElement('button'); tg.type='button'; tg.textContent='\u2708 Telegram';
+    tg.style.cssText='background:#229ED9;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer';
+    wa.onclick=function(e){ e.stopPropagation(); openWA(t); };
+    tg.onclick=function(e){ e.stopPropagation(); openTG(t); };
+    bar.appendChild(wa); bar.appendChild(tg);
+    main.appendChild(bar);
+  });
+}
+
+var kaT=setInterval(decorateTasks, 1200);
+decorateTasks();
+setTimeout(decorateTasks, 400);
+document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }, true);
+
+})();
+
+</script>
 </body>
 </html>
 
