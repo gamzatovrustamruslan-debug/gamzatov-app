@@ -6233,3 +6233,59 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
 
 </body>
 </html>
+
+<!-- ===== G2 UI FIX: blue compact styling + accordion + compact master button ===== -->
+<style id="g2FixStyle">
+.g2-master, .g2-master-head, .g2-master-body { display:none !important; }
+#g2CardHost .g2-card-block, #g2CardHost .g2-card-block.g2-card-private{ background:transparent !important; border:0 !important; border-radius:0 !important; padding:0 !important; margin:8px 0 0 0 !important; }
+#g2CardHost .g2-card-bt{ font-size:10px !important; font-weight:700 !important; color:rgba(255,255,255,.85) !important; text-transform:uppercase; letter-spacing:.5px; margin:8px 0 4px 0 !important; }
+#g2CardHost .g2-card-private .g2-card-bt{ color:#ffd9a8 !important; }
+#g2CardHost .g2-card-grid{ display:grid !important; grid-template-columns:1fr 1fr !important; gap:6px !important; }
+#g2CardHost .g2-card-grid .field.full{ grid-column:1 / -1; }
+#g2CardHost .g2-card-grid label{ display:block !important; font-size:9px !important; color:rgba(255,255,255,.8) !important; text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px !important; font-weight:400 !important; }
+#g2CardHost .g2-card-grid input, #g2CardHost .g2-card-grid select, #g2CardHost .g2-card-grid textarea{ background:rgba(255,255,255,.18) !important; border:1px solid rgba(255,255,255,.3) !important; color:#fff !important; padding:5px 8px !important; border-radius:4px !important; font-size:12px !important; font-family:inherit !important; width:100%; box-sizing:border-box; }
+#g2CardHost .g2-card-grid textarea{ min-height:38px; resize:vertical; }
+#g2CardHost .g2-card-grid input::placeholder, #g2CardHost .g2-card-grid textarea::placeholder{ color:rgba(255,255,255,.55) !important; }
+#g2CardHost .g2-card-grid option{ color:#0d47a1; }
+.g2-acc-head{ display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.3); color:#fff; padding:6px 10px; border-radius:8px; font-size:13px; font-weight:600; margin-top:8px; }
+.g2-acc-head .g2-acc-arrow{ margin-left:auto; transition:transform .15s; opacity:.85; }
+.g2-acc-wrap.open .g2-acc-head .g2-acc-arrow{ transform:rotate(180deg); }
+.g2-acc-body{ display:none; }
+.g2-acc-wrap.open .g2-acc-body{ display:block; }
+</style>
+<script id="g2FixScript">
+(function(){
+  'use strict';
+  function getProj(){ try{ return window.activeProject ? window.activeProject() : null; }catch(e){ return null; } }
+  function wrapAccordion(){
+    var host=document.getElementById('g2CardHost'); if(!host) return;
+    if(host.querySelector('.g2-acc-wrap')) return;
+    var blocks=[].slice.call(host.querySelectorAll('.g2-card-block')); if(!blocks.length) return;
+    var wrap=document.createElement('div'); wrap.className='g2-acc-wrap';
+    var head=document.createElement('div'); head.className='g2-acc-head';
+    head.innerHTML='<span>\uD83D\uDCCB \u0414\u0430\u043D\u043D\u044B\u0435 \u043E\u0431\u044A\u0435\u043A\u0442\u0430</span><span class="g2-acc-arrow">\u25BE</span>';
+    var body=document.createElement('div'); body.className='g2-acc-body';
+    host.insertBefore(wrap, host.firstChild); wrap.appendChild(head); wrap.appendChild(body);
+    blocks.forEach(function(b){ body.appendChild(b); });
+    head.addEventListener('click', function(){ wrap.classList.toggle('open'); });
+  }
+  function buildText(){
+    var p=getProj(); if(!p){ alert('\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0443 \u043E\u0431\u044A\u0435\u043A\u0442\u0430.'); return; }
+    if(window.GAMZ2 && window.GAMZ2.copyMaster){ try{ window.GAMZ2.copyMaster(p); return; }catch(e){} }
+    var txt=''; try{ if(window.GAMZ2 && window.GAMZ2.buildMaster) txt=window.GAMZ2.buildMaster(p); }catch(e){}
+    if(!txt) return;
+    if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ alert(txt); }, function(){ window.prompt('',txt); }); } else { window.prompt('',txt); }
+  }
+  window.g2AddrForMaster=buildText;
+  function addToolbarBtn(){
+    var bar=document.querySelector('.hdr-actions'); if(!bar) return;
+    if(bar.querySelector('#g2AddrBtn')) return;
+    var b=document.createElement('button'); b.id='g2AddrBtn'; b.className='back-btn'; b.type='button';
+    b.textContent='\uD83D\uDCCD \u0410\u0434\u0440\u0435\u0441 \u043C\u0430\u0441\u0442\u0435\u0440\u0443';
+    b.addEventListener('click', buildText); bar.appendChild(b);
+  }
+  function run(){ try{ addToolbarBtn(); wrapAccordion(); }catch(e){} }
+  if(document.readyState!=='loading') run(); else document.addEventListener('DOMContentLoaded', run);
+  setInterval(run, 1000);
+})();
+</script>
