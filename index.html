@@ -6231,6 +6231,317 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
 })();
 </script>
 
+
+<!-- ===== МОДУЛЬ «СРОКИ» (надстройка): сдвиги, цвета, акт продления, Гант, компании ===== -->
+<style id="srokiModuleStyle">
+#srokiOverlay{position:fixed;inset:0;background:rgba(15,30,55,.55);z-index:99999;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px;font-family:inherit}
+#srokiOverlay.open{display:flex}
+.srk-modal{background:#fff;border-radius:18px;max-width:1000px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.srk-head{background:linear-gradient(135deg,#1976d2,#0d47a1);color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}
+.srk-head h2{margin:0;font-size:19px;font-weight:700}
+.srk-x{background:rgba(255,255,255,.2);border:0;color:#fff;width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer}
+.srk-body{padding:18px 22px;max-height:78vh;overflow:auto}
+.srk-obj{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.srk-cell{background:#f4f7fb;border:1px solid #e3eaf4;border-radius:11px;padding:10px 12px}
+.srk-cell label{display:block;font-size:11px;color:#6b7d97;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.srk-cell .v{font-size:16px;font-weight:700;color:#11305a}
+.srk-bar{height:14px;background:#e6ecf5;border-radius:8px;overflow:hidden;margin:6px 0 4px}
+.srk-bar>span{display:block;height:100%;border-radius:8px;transition:width .4s}
+.srk-bar.green>span{background:linear-gradient(90deg,#34c759,#16a34a)}
+.srk-bar.yellow>span{background:linear-gradient(90deg,#ffd60a,#f59e0b)}
+.srk-bar.red>span{background:linear-gradient(90deg,#ff6b6b,#dc2626)}
+.srk-bar.gray>span{background:#b9c4d4}
+.srk-meta{font-size:12px;color:#6b7d97;text-align:right;margin-bottom:14px}
+.srk-btns{display:flex;gap:10px;margin:6px 0 16px;flex-wrap:wrap}
+.srk-btn{flex:1;min-width:200px;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
+.srk-btn.act{background:#fff3e0;color:#e65100;border:1.5px solid #ffcc80}
+.srk-btn.gantt{background:#e3f2fd;color:#1565c0;border:1.5px solid #90caf9}
+.srk-btn.comp{background:#f3e5f5;color:#6a1b9a;border:1.5px solid #ce93d8}
+.srk-stage{border:1px solid #e3eaf4;border-radius:13px;padding:12px 14px;margin-bottom:10px;border-left:6px solid #b9c4d4}
+.srk-stage.green{border-left-color:#16a34a;background:#f3fbf5}
+.srk-stage.yellow{border-left-color:#f59e0b;background:#fffbef}
+.srk-stage.red{border-left-color:#dc2626;background:#fef4f4}
+.srk-stage.gray{border-left-color:#b9c4d4;background:#f8fafc}
+.srk-srow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.srk-sname{font-weight:700;color:#11305a;font-size:15px}
+.srk-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.srk-badge.green{background:#d7f5e0;color:#15803d}
+.srk-badge.yellow{background:#fff0c2;color:#b45309}
+.srk-badge.red{background:#ffdcdc;color:#b91c1c}
+.srk-badge.gray{background:#e8edf3;color:#64748b}
+.srk-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:6px 0}
+.srk-f{display:flex;flex-direction:column;gap:3px}
+.srk-f label{font-size:10px;color:#6b7d97;text-transform:uppercase}
+.srk-f input,.srk-f select{border:1px solid #d4deeb;border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit}
+.srk-shift{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:13px}
+.srk-shift input[type=number]{width:70px;border:1px solid #d4deeb;border-radius:8px;padding:6px;font-size:13px}
+.srk-shift input[type=text]{flex:1;min-width:140px;border:1px solid #d4deeb;border-radius:8px;padding:6px 9px;font-size:13px;font-family:inherit}
+.srk-mini{font-size:11px;color:#6b7d97;background:#eef3f9;padding:2px 8px;border-radius:6px}
+.srk-actbtn{background:#fff3e0;color:#e65100;border:1px solid #ffcc80;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.srk-gantt{overflow-x:auto;border:1px solid #e3eaf4;border-radius:12px;padding:10px;background:#fbfcfe}
+.srk-gtable{border-collapse:collapse;font-size:11px}
+.srk-gtable th,.srk-gtable td{border:1px solid #edf1f7;padding:0;height:26px;text-align:center;min-width:22px}
+.srk-gname{position:sticky;left:0;background:#fff;text-align:left!important;padding:0 10px!important;font-weight:600;color:#11305a;min-width:160px;white-space:nowrap}
+.srk-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.srk-tab{border:1px solid #cdd9e8;background:#fff;border-radius:9px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#11305a}
+.srk-tab.on{background:#1976d2;color:#fff;border-color:#1976d2}
+#srokiFab{position:fixed;right:18px;bottom:84px;z-index:9000;background:linear-gradient(135deg,#1976d2,#0d47a1);color:#fff;border:0;border-radius:30px;padding:13px 20px;font-size:15px;font-weight:700;box-shadow:0 8px 22px rgba(13,71,161,.4);cursor:pointer}
+.srk-section-title{font-weight:800;color:#11305a;margin:18px 0 8px;font-size:15px}
+</style>
+
+<script>
+(function(){
+  function persist(){ try{ saveLocal&&saveLocal(); }catch(e){} try{ scheduleCloudSync&&scheduleCloudSync(); }catch(e){} }
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function pd(s){ try{ var d=parseRuDate(s); return d||null; }catch(e){ return null; } }
+  function daysBetween(a,b){ if(!a||!b) return null; return Math.round((b-a)/86400000); }
+  function todayD(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
+  function fmt(d){ if(!d) return '\u2014'; try{return fmtRuDate?fmtRuDate(d):(d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear());}catch(e){ return d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear(); } }
+  function esc(s){ return (s||'').toString().replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
+
+  function stageShift(st){
+    var planEnd=pd(st.planEnd), factEnd=pd(st.factEnd), auto=0;
+    if(planEnd){
+      if(factEnd){ auto=daysBetween(planEnd,factEnd); }
+      else if(st.status!=='done' && todayD()>planEnd){ auto=daysBetween(planEnd,todayD()); }
+    }
+    var manual=(typeof st.shiftDays==='number')?st.shiftDays:null;
+    return { auto:auto, manual:manual, total:(manual!==null?manual:auto) };
+  }
+  function stageColor(st){
+    var planEnd=pd(st.planEnd), planStart=pd(st.planStart), factEnd=pd(st.factEnd), sh=stageShift(st);
+    if(st.status==='done'||factEnd){ return sh.total>0?'red':'green'; }
+    if(!planEnd) return 'gray';
+    var t=todayD();
+    if(t>planEnd) return 'red';
+    var dur=planStart?Math.max(1,daysBetween(planStart,planEnd)):null;
+    var left=daysBetween(t,planEnd);
+    var threshold=dur?Math.max(3,Math.ceil(dur*0.2)):3;
+    if(left<=threshold) return 'yellow';
+    return 'green';
+  }
+  function progressPct(st){
+    var ps=pd(st.planStart), pe=pd(st.planEnd);
+    if(!ps||!pe) return 0;
+    if(st.status==='done'||pd(st.factEnd)) return 100;
+    var t=todayD(), tot=Math.max(1,daysBetween(ps,pe)), done=daysBetween(ps,t);
+    return Math.min(100,Math.max(0,Math.round(done/tot*100)));
+  }
+
+  // ---------- state / companies ----------
+  function getState(){ try{ return JSON.parse(localStorage.getItem('gamzatov_smeta_v4'))||{}; }catch(e){ return {}; } }
+  function setState(st){ localStorage.setItem('gamzatov_smeta_v4',JSON.stringify(st)); try{scheduleCloudSync&&scheduleCloudSync();}catch(e){} }
+  function defaultCompany(){
+    var b=(typeof getBrand==='function')?getBrand():{}; var req=b.__req||{};
+    return { id:'own', name:b.name||'\u041c\u043e\u044f \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044f', short:b.contractor||'', inn:'', kpp:'', ogrn:'',
+      director:req.fio||b.contractor||'', address:req.reg||'', phone:b.phone||'', email:b.email||'',
+      bank:'', account:'', requisites:[req.passport,req.live].filter(Boolean).join('; ') };
+  }
+  function getCompanies(){ var st=getState(); if(!Array.isArray(st.companies)||!st.companies.length){ st.companies=[defaultCompany()]; st.activeCompanyId='own'; setState(st); } return st.companies; }
+  function getActiveCompany(){ var st=getState(), list=getCompanies(); return list.find(function(c){return c.id===st.activeCompanyId;})||list[0]; }
+  window.srkSetActiveCompany=function(id){ var st=getState(); st.activeCompanyId=id; setState(st); renderCompanies(); };
+  window.srkAddCompany=function(){ getCompanies(); var fresh=getState(); fresh.companies.push({id:'c'+Date.now(),name:'\u041d\u043e\u0432\u0430\u044f \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044f',short:'',inn:'',kpp:'',ogrn:'',director:'',address:'',phone:'',email:'',bank:'',account:'',requisites:''}); setState(fresh); renderCompanies(); };
+  window.srkDelCompany=function(id){ if(!confirm('\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044e \u0438\u0437 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0430?')) return; var st=getState(); st.companies=(st.companies||[]).filter(function(c){return c.id!==id;}); if(st.activeCompanyId===id) st.activeCompanyId=(st.companies[0]&&st.companies[0].id)||null; setState(st); renderCompanies(); };
+  window.srkCompanyField=function(id,f,v){ var st=getState(); var c=(st.companies||[]).find(function(x){return x.id===id;}); if(c){ c[f]=v; setState(st); } };
+
+  // ---------- open/close ----------
+  window.openSroki=function(){ renderSroki(); document.getElementById('srokiOverlay').classList.add('open'); };
+  window.closeSroki=function(){ document.getElementById('srokiOverlay').classList.remove('open'); };
+  window.backToSroki=function(){ renderSroki(); };
+  window.srkField=function(i,f,v){ var p=P(); p.stages[i][f]=v.trim(); persist(); renderSroki(); };
+  window.srkShiftInput=function(i,v){ var p=P(); var n=v===''?null:Number(v); p.stages[i].shiftDays=(n===null||isNaN(n))?null:n; persist(); renderSroki(); };
+  window.srkReason=function(i,v){ var p=P(); p.stages[i].shiftReason=v; persist(); };
+
+  // ---------- render main ----------
+  function renderSroki(){
+    var p=P(), body=document.getElementById('srkBody');
+    if(!p){ body.innerHTML='<p style="color:#888">\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043e\u0431\u044a\u0435\u043a\u0442, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u0441\u0440\u043e\u043a\u0438.</p>'; return; }
+    var ds=pd(p.dateStart), de=pd(p.dateEnd), objShift=0, stages=p.stages||[];
+    stages.forEach(function(st){ objShift=Math.max(objShift,stageShift(st).total||0); });
+    var oColor='green';
+    if(stages.some(function(st){return stageColor(st)==='red';})) oColor='red';
+    else if(stages.some(function(st){return stageColor(st)==='yellow';})) oColor='yellow';
+    var oPct=0; if(ds&&de){ var tot=Math.max(1,daysBetween(ds,de)); oPct=Math.min(100,Math.max(0,Math.round(daysBetween(ds,todayD())/tot*100))); }
+    var left=de?daysBetween(todayD(),de):null;
+    body.innerHTML='<div class="srk-obj">'
+      +'<div class="srk-cell"><label>\u041d\u0430\u0447\u0430\u043b\u043e \u0440\u0430\u0431\u043e\u0442</label><div class="v">'+fmt(ds)+'</div></div>'
+      +'<div class="srk-cell"><label>\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u0440\u0430\u0431\u043e\u0442</label><div class="v">'+fmt(de)+'</div></div>'
+      +'<div class="srk-cell"><label>\u0421\u0434\u0432\u0438\u0433 \u043f\u043e \u043e\u0431\u044a\u0435\u043a\u0442\u0443</label><div class="v" style="color:'+(objShift>0?'#dc2626':'#16a34a')+'">'+(objShift>0?'+'+objShift+' \u0434\u043d.':'\u043d\u0435\u0442')+'</div></div></div>'
+      +'<div class="srk-bar '+oColor+'"><span style="width:'+oPct+'%"></span></div>'
+      +'<div class="srk-meta">'+oPct+'% \u0441\u0440\u043e\u043a\u0430'+(left!==null?' \u00b7 '+(left>=0?('\u043e\u0441\u0442\u0430\u043b\u043e\u0441\u044c '+left+' \u0434\u043d.'):('\u043f\u0440\u043e\u0441\u0440\u043e\u0447\u043a\u0430 '+(-left)+' \u0434\u043d.')):'')+'</div>'
+      +'<div class="srk-btns"><button class="srk-btn act" onclick="openProdlenie()">\ud83d\udcc4 \u0410\u043a\u0442 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f \u0441\u0440\u043e\u043a\u043e\u0432</button>'
+      +'<button class="srk-btn gantt" onclick="openGanttView()">\ud83d\udcc5 \u041f\u043b\u0430\u043d-\u0433\u0440\u0430\u0444\u0438\u043a (\u0413\u0430\u043d\u0442)</button>'
+      +'<button class="srk-btn comp" onclick="openCompanies()">\ud83c\udfe2 \u041a\u043e\u043c\u043f\u0430\u043d\u0438\u0438-\u043f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a\u0438</button></div>'
+      +'<div class="srk-section-title">\ud83d\udccb \u042d\u0442\u0430\u043f\u044b \u043f\u0440\u043e\u0435\u043a\u0442\u0430 ('+stages.length+')</div><div id="srkStages"></div>';
+    renderSrokiStages();
+  }
+  function renderSrokiStages(){
+    var p=P(), cont=document.getElementById('srkStages'); if(!cont) return; var stages=p.stages||[];
+    cont.innerHTML=stages.map(function(st,i){
+      var c=stageColor(st), sh=stageShift(st), pct=progressPct(st);
+      var badge={green:'\ud83d\udfe2 \u0412 \u043d\u043e\u0440\u043c\u0435',yellow:'\ud83d\udfe1 \u0420\u0438\u0441\u043a',red:'\ud83d\udd34 \u0417\u0430\u0434\u0435\u0440\u0436\u043a\u0430',gray:'\u26aa \u041d\u0435 \u0437\u0430\u0434\u0430\u043d'}[c];
+      var nm=st.name||('\u042d\u0442\u0430\u043f '+(i+1));
+      return '<div class="srk-stage '+c+'"><div class="srk-srow"><span class="srk-sname">'+esc(nm)+'</span><span class="srk-badge '+c+'">'+badge+'</span></div>'
+        +'<div class="srk-bar '+c+'" style="height:10px"><span style="width:'+pct+'%"></span></div>'
+        +'<div class="srk-grid">'
+        +'<div class="srk-f"><label>\u041f\u043b\u0430\u043d \u043d\u0430\u0447\u0430\u043b\u043e</label><input value="'+(st.planStart||'')+'" placeholder="\u0434\u0434.\u043c\u043c.\u0433\u0433\u0433\u0433" onchange="srkField('+i+',\'planStart\',this.value)"></div>'
+        +'<div class="srk-f"><label>\u041f\u043b\u0430\u043d \u043a\u043e\u043d\u0435\u0446</label><input value="'+(st.planEnd||'')+'" placeholder="\u0434\u0434.\u043c\u043c.\u0433\u0433\u0433\u0433" onchange="srkField('+i+',\'planEnd\',this.value)"></div>'
+        +'<div class="srk-f"><label>\u0421\u0434\u0432\u0438\u0433 (\u0430\u0432\u0442\u043e)</label><input disabled value="'+(sh.auto>0?'+'+sh.auto+' \u0434\u043d.':(sh.auto<0?sh.auto+' \u0434\u043d.':'0'))+'"></div>'
+        +'<div class="srk-f"><label>\u0424\u0430\u043a\u0442 \u043d\u0430\u0447\u0430\u043b\u043e</label><input value="'+(st.factStart||'')+'" placeholder="\u0434\u0434.\u043c\u043c.\u0433\u0433\u0433\u0433" onchange="srkField('+i+',\'factStart\',this.value)"></div>'
+        +'<div class="srk-f"><label>\u0424\u0430\u043a\u0442 \u043a\u043e\u043d\u0435\u0446</label><input value="'+(st.factEnd||'')+'" placeholder="\u0434\u0434.\u043c\u043c.\u0433\u0433\u0433\u0433" onchange="srkField('+i+',\'factEnd\',this.value)"></div>'
+        +'<div class="srk-f"><label>\u0421\u0434\u0432\u0438\u0433 (\u0440\u0443\u0447\u043d\u043e\u0439, \u0434\u043d.)</label><input type="number" value="'+(st.shiftDays!=null?st.shiftDays:'')+'" placeholder="\u0430\u0432\u0442\u043e" onchange="srkShiftInput('+i+',this.value)"></div></div>'
+        +'<div class="srk-shift"><span class="srk-mini">\u0418\u0442\u043e\u0433 \u0441\u0434\u0432\u0438\u0433\u0430: <b style="color:'+(sh.total>0?'#dc2626':'#16a34a')+'">'+(sh.total>0?'+'+sh.total+' \u0434\u043d.':(sh.total<0?sh.total+' \u0434\u043d.':'0'))+'</b></span>'
+        +'<input type="text" value="'+esc(st.shiftReason||'')+'" placeholder="\u041f\u0440\u0438\u0447\u0438\u043d\u0430 \u0441\u0434\u0432\u0438\u0433\u0430..." onchange="srkReason('+i+',this.value)">'
+        +'<button class="srk-actbtn" onclick="openProdlenie('+i+')">\ud83d\udcc4 \u0410\u043a\u0442 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f</button></div></div>';
+    }).join('')||'<p style="color:#888">\u042d\u0442\u0430\u043f\u044b \u043d\u0435 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b.</p>';
+  }
+  window.renderSroki=renderSroki; window.renderSrokiStages=renderSrokiStages;
+
+  // ---------- companies UI ----------
+  function renderCompanies(){
+    var list=getCompanies(), st=getState(), act=st.activeCompanyId, body=document.getElementById('srkBody');
+    body.innerHTML='<button class="srk-tab" onclick="backToSroki()">\u2190 \u041a \u0441\u0440\u043e\u043a\u0430\u043c</button>'
+      +'<div class="srk-section-title">\ud83c\udfe2 \u0421\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0439-\u043f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a\u043e\u0432</div>'
+      +'<p style="font-size:13px;color:#6b7d97;margin:0 0 12px">\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0430\u043a\u0442\u0438\u0432\u043d\u0443\u044e \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044e \u2014 \u0435\u0451 \u0440\u0435\u043a\u0432\u0438\u0437\u0438\u0442\u044b \u043f\u043e\u0434\u0441\u0442\u0430\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u0432 \u0430\u043a\u0442 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f \u0438 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u044b.</p>'
+      +list.map(function(c){
+        return '<div class="srk-stage '+(c.id===act?'green':'gray')+'" style="border-left-color:'+(c.id===act?'#16a34a':'#b9c4d4')+'">'
+          +'<div class="srk-srow"><label style="display:flex;align-items:center;gap:8px;font-weight:700;color:#11305a;font-size:15px;cursor:pointer"><input type="radio" name="actcomp" '+(c.id===act?'checked':'')+' onclick="srkSetActiveCompany(\''+c.id+'\')"> '+(esc(c.name)||'\u0411\u0435\u0437 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f')+(c.id===act?' <span class="srk-badge green">\u0430\u043a\u0442\u0438\u0432\u043d\u0430</span>':'')+'</label>'
+          +(list.length>1?'<button class="srk-actbtn" style="background:#fdecea;color:#c62828;border-color:#ef9a9a" onclick="srkDelCompany(\''+c.id+'\')">\u0423\u0434\u0430\u043b\u0438\u0442\u044c</button>':'')+'</div>'
+          +'<div class="srk-grid" style="grid-template-columns:1fr 1fr">'
+          +'<div class="srk-f"><label>\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u0438</label><input value="'+esc(c.name)+'" onchange="srkCompanyField(\''+c.id+'\',\'name\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u041a\u0440\u0430\u0442\u043a\u043e\u0435 / \u0432 \u043b\u0438\u0446\u0435</label><input value="'+esc(c.short)+'" onchange="srkCompanyField(\''+c.id+'\',\'short\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u0414\u0438\u0440\u0435\u043a\u0442\u043e\u0440 / \u0418\u041f (\u0424\u0418\u041e)</label><input value="'+esc(c.director)+'" onchange="srkCompanyField(\''+c.id+'\',\'director\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u0418\u041d\u041d</label><input value="'+esc(c.inn)+'" onchange="srkCompanyField(\''+c.id+'\',\'inn\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u041a\u041f\u041f</label><input value="'+esc(c.kpp)+'" onchange="srkCompanyField(\''+c.id+'\',\'kpp\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u041e\u0413\u0420\u041d / \u041e\u0413\u0420\u041d\u0418\u041f</label><input value="'+esc(c.ogrn)+'" onchange="srkCompanyField(\''+c.id+'\',\'ogrn\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u0422\u0435\u043b\u0435\u0444\u043e\u043d</label><input value="'+esc(c.phone)+'" onchange="srkCompanyField(\''+c.id+'\',\'phone\',this.value)"></div>'
+          +'<div class="srk-f"><label>E-mail</label><input value="'+esc(c.email)+'" onchange="srkCompanyField(\''+c.id+'\',\'email\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u042e\u0440. \u0430\u0434\u0440\u0435\u0441</label><input value="'+esc(c.address)+'" onchange="srkCompanyField(\''+c.id+'\',\'address\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u0411\u0430\u043d\u043a</label><input value="'+esc(c.bank)+'" onchange="srkCompanyField(\''+c.id+'\',\'bank\',this.value)"></div>'
+          +'<div class="srk-f"><label>\u0420\u0430\u0441\u0447\u0451\u0442\u043d\u044b\u0439 \u0441\u0447\u0451\u0442</label><input value="'+esc(c.account)+'" onchange="srkCompanyField(\''+c.id+'\',\'account\',this.value)"></div>'
+          +'<div class="srk-f" style="grid-column:1/3"><label>\u0414\u043e\u043f. \u0440\u0435\u043a\u0432\u0438\u0437\u0438\u0442\u044b</label><input value="'+esc(c.requisites)+'" onchange="srkCompanyField(\''+c.id+'\',\'requisites\',this.value)"></div></div></div>';
+      }).join('')
+      +'<button class="srk-btn comp" style="margin-top:8px" onclick="srkAddCompany()">\u2795 \u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044e</button>';
+  }
+  window.openCompanies=function(){ renderCompanies(); document.getElementById('srokiOverlay').classList.add('open'); };
+  window.renderCompanies=renderCompanies;
+
+  // ---------- prodlenie act ----------
+  window.openProdlenie=function(stageIdx){
+    var p=P(); if(!p){ alert('\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043e\u0431\u044a\u0435\u043a\u0442'); return; }
+    var stages=p.stages||[], body=document.getElementById('srkBody');
+    var opts=stages.map(function(st,i){ return '<option value="'+i+'" '+(i===stageIdx?'selected':'')+'>'+esc(st.name||('\u042d\u0442\u0430\u043f '+(i+1)))+'</option>'; }).join('');
+    var redIdx=stages.findIndex(function(st){return stageColor(st)==='red';});
+    var sel=(stageIdx!=null?stageIdx:(redIdx>=0?redIdx:0)), st=stages[sel]||{};
+    body.innerHTML='<button class="srk-tab" onclick="backToSroki()">\u2190 \u041a \u0441\u0440\u043e\u043a\u0430\u043c</button>'
+      +'<div class="srk-section-title">\ud83d\udcc4 \u0410\u043a\u0442 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f \u0441\u0440\u043e\u043a\u043e\u0432</div>'
+      +'<div class="srk-grid" style="grid-template-columns:1fr 1fr">'
+      +'<div class="srk-f"><label>\u042d\u0442\u0430\u043f \u0440\u0430\u0431\u043e\u0442</label><select id="prEtap" onchange="prFill()">'+opts+'</select></div>'
+      +'<div class="srk-f"><label>\u041d\u043e\u0432\u044b\u0439 \u0441\u0440\u043e\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f</label><input id="prNewDate" placeholder="\u0434\u0434.\u043c\u043c.\u0433\u0433\u0433\u0433"></div>'
+      +'<div class="srk-f"><label>\u041a\u043e\u043b-\u0432\u043e \u0434\u043d\u0435\u0439 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f</label><input id="prDays" type="number"></div>'
+      +'<div class="srk-f"><label>\u0414\u0430\u0442\u0430 \u0430\u043a\u0442\u0430</label><input id="prActDate"></div>'
+      +'<div class="srk-f" style="grid-column:1/3"><label>\u041f\u0440\u0438\u0447\u0438\u043d\u0430 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f</label><input id="prReason" placeholder="\u041f\u0440\u0438\u0447\u0438\u043d\u0430..."></div></div>'
+      +'<button class="srk-btn act" style="margin-top:10px" onclick="printProdlenie()">\ud83d\udda8 \u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0438 \u043f\u0435\u0447\u0430\u0442\u044c \u0430\u043a\u0442\u0430</button>'
+      +'<div id="prPreview" style="margin-top:14px;border:1px solid #e3eaf4;border-radius:12px;padding:16px;background:#fff"></div>';
+    var t=new Date(), td=t.getDate()+'.'+(t.getMonth()+1)+'.'+t.getFullYear();
+    document.getElementById('prActDate').value=td;
+    document.getElementById('prReason').value=st.shiftReason||'';
+    var sh=stageShift(st).total; if(sh>0) document.getElementById('prDays').value=sh;
+    document.getElementById('prEtap').value=sel;
+    prRenderPreview();
+  };
+  window.prFill=function(){ var p=P(), i=+document.getElementById('prEtap').value, st=p.stages[i]||{};
+    document.getElementById('prReason').value=st.shiftReason||''; var sh=stageShift(st).total; document.getElementById('prDays').value=sh>0?sh:''; document.getElementById('prNewDate').value=''; prRenderPreview(); };
+  function prRenderPreview(){
+    var p=P(), comp=getActiveCompany(), i=+(document.getElementById('prEtap').value||0), st=(p.stages||[])[i]||{};
+    var days=document.getElementById('prDays').value||stageShift(st).total||'';
+    var reason=document.getElementById('prReason').value||st.shiftReason||'________________';
+    var newDate=document.getElementById('prNewDate').value||'________';
+    var actDate=document.getElementById('prActDate').value||'';
+    var num=(p.contractNumber||'\u0431/\u043d');
+    document.getElementById('prPreview').innerHTML='<div id="prDoc" style="font-family:\'Times New Roman\',serif;color:#000;line-height:1.5;font-size:14px">'
+      +'<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:4px">\u0410\u041a\u0422 \u041f\u0420\u041e\u0414\u041b\u0415\u041d\u0418\u042f \u0421\u0420\u041e\u041a\u041e\u0412</div>'
+      +'<div style="text-align:center;margin-bottom:14px">\u043a \u0414\u043e\u0433\u043e\u0432\u043e\u0440\u0443 \u043f\u043e\u0434\u0440\u044f\u0434\u0430 \u2116 '+esc(num)+' \u043e\u0442 '+esc(p.contractDate||'____')+'</div>'
+      +'<div style="display:flex;justify-content:space-between"><span>'+(actDate?'\u0433. \u041c\u043e\u0441\u043a\u0432\u0430':'')+'</span><span>'+esc(actDate)+'</span></div>'
+      +'<p><b>\u041f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a:</b> '+esc(comp.name||'')+(comp.short?(' ('+esc(comp.short)+')'):'')+(comp.director?(', \u0432 \u043b\u0438\u0446\u0435 '+esc(comp.director)):'')+(comp.inn?(', \u0418\u041d\u041d '+esc(comp.inn)):'')+'.</p>'
+      +'<p><b>\u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a:</b> '+esc(p.client||p.name||'________________')+(p.phone?(', \u0442\u0435\u043b. '+esc(p.phone)):'')+(p.address?(', \u0430\u0434\u0440\u0435\u0441: '+esc(p.address)):'')+'.</p>'
+      +'<p><b>\u041e\u0431\u044a\u0435\u043a\u0442:</b> '+esc(p.name||'')+'.</p>'
+      +'<p>\u0421\u0442\u043e\u0440\u043e\u043d\u044b \u043f\u0440\u0438\u0448\u043b\u0438 \u043a \u0441\u043e\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u044e \u043f\u0440\u043e\u0434\u043b\u0438\u0442\u044c \u0441\u0440\u043e\u043a \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f \u044d\u0442\u0430\u043f\u0430 \u0440\u0430\u0431\u043e\u0442 \u00ab<b>'+esc(st.name||('\u042d\u0442\u0430\u043f '+(i+1)))+'</b>\u00bb \u043d\u0430 <b>'+esc(days||'__')+'</b> \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u043d\u044b\u0445 \u0434\u043d\u0435\u0439.</p>'
+      +'<p>\u041f\u043b\u0430\u043d\u043e\u0432\u043e\u0435 \u043d\u0430\u0447\u0430\u043b\u043e \u044d\u0442\u0430\u043f\u0430: '+esc(st.planStart||'____')+'. \u041f\u0435\u0440\u0432\u043e\u043d\u0430\u0447\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0440\u043e\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f: '+esc(st.planEnd||'____')+'. \u041d\u043e\u0432\u044b\u0439 \u0441\u0440\u043e\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f: <b>'+esc(newDate)+'</b>.</p>'
+      +'<p><b>\u041f\u0440\u0438\u0447\u0438\u043d\u0430 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f:</b> '+esc(reason)+'.</p>'
+      +'<p>\u041d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0439 \u0430\u043a\u0442 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u043d\u0435\u043e\u0442\u044a\u0435\u043c\u043b\u0435\u043c\u043e\u0439 \u0447\u0430\u0441\u0442\u044c\u044e \u0414\u043e\u0433\u043e\u0432\u043e\u0440\u0430 \u2116 '+esc(num)+'.</p>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:30px"><div>\u041f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a:<br>_______________ / '+esc(comp.director||comp.short||'')+'</div><div>\u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a:<br>_______________ / '+esc(p.client||'')+'</div></div></div>';
+  }
+  window.prRenderPreview=prRenderPreview;
+  window.printProdlenie=function(){ prRenderPreview(); var html=document.getElementById('prDoc').outerHTML; var w=window.open('','_blank'); w.document.write('<html><head><title>\u0410\u043a\u0442 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f \u0441\u0440\u043e\u043a\u043e\u0432</title></head><body style="padding:40px">'+html+'</body></html>'); w.document.close(); w.focus(); setTimeout(function(){w.print();},300); };
+  document.addEventListener('input',function(e){ if(['prDays','prReason','prNewDate','prActDate'].indexOf(e.target.id)>=0) prRenderPreview(); });
+
+  // ---------- gantt ----------
+  var ganttRole='prorab', ganttScale='month';
+  function monthName(m){ return ['\u042f\u043d\u0432','\u0424\u0435\u0432','\u041c\u0430\u0440','\u0410\u043f\u0440','\u041c\u0430\u0439','\u0418\u044e\u043d','\u0418\u044e\u043b','\u0410\u0432\u0433','\u0421\u0435\u043d','\u041e\u043a\u0442','\u041d\u043e\u044f','\u0414\u0435\u043a'][m]; }
+  function stripTime(x){ var y=new Date(x); y.setHours(0,0,0,0); return y; }
+  window.setGanttRole=function(r){ ganttRole=r; renderGanttView(); };
+  window.setGanttScale=function(s){ ganttScale=s; renderGanttView(); };
+  window.openGanttView=function(){ renderGanttView(); document.getElementById('srokiOverlay').classList.add('open'); };
+  function renderGanttView(){
+    var p=P(), body=document.getElementById('srkBody');
+    if(!p){ body.innerHTML='<p>\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043e\u0431\u044a\u0435\u043a\u0442</p>'; return; }
+    var stages=(p.stages||[]).filter(function(st){ return pd(st.planStart)&&pd(st.planEnd); });
+    var min=null,max=null; function consider(d){ if(!d)return; if(!min||d<min)min=d; if(!max||d>max)max=d; }
+    stages.forEach(function(st){ consider(pd(st.planStart)); consider(pd(st.planEnd)); consider(pd(st.factStart)); consider(pd(st.factEnd)); });
+    consider(pd(p.dateStart)); consider(pd(p.dateEnd));
+    body.innerHTML='<button class="srk-tab" onclick="backToSroki()">\u2190 \u041a \u0441\u0440\u043e\u043a\u0430\u043c</button>'
+      +'<div class="srk-section-title">\ud83d\udcc5 \u0414\u0438\u0430\u0433\u0440\u0430\u043c\u043c\u0430 \u0413\u0430\u043d\u0442\u0430</div>'
+      +'<div class="srk-tabs"><button class="srk-tab '+(ganttRole==='zakaz'?'on':'')+'" onclick="setGanttRole(\'zakaz\')">\ud83d\udc64 \u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a</button>'
+      +'<button class="srk-tab '+(ganttRole==='master'?'on':'')+'" onclick="setGanttRole(\'master\')">\ud83d\udee0 \u041c\u0430\u0441\u0442\u0435\u0440</button>'
+      +'<button class="srk-tab '+(ganttRole==='prorab'?'on':'')+'" onclick="setGanttRole(\'prorab\')">\ud83d\udc77 \u041f\u0440\u043e\u0440\u0430\u0431</button></div>'
+      +'<div class="srk-tabs"><button class="srk-tab '+(ganttScale==='day'?'on':'')+'" onclick="setGanttScale(\'day\')">\u041f\u043e \u0434\u043d\u044f\u043c</button>'
+      +'<button class="srk-tab '+(ganttScale==='month'?'on':'')+'" onclick="setGanttScale(\'month\')">\u041f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c</button></div>'
+      +'<div class="srk-gantt" id="ganttArea"></div>';
+    var area=document.getElementById('ganttArea');
+    if(!stages.length||!min||!max){ area.innerHTML='<p style="color:#888">\u0417\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u043f\u043b\u0430\u043d\u043e\u0432\u044b\u0435 \u0434\u0430\u0442\u044b \u044d\u0442\u0430\u043f\u043e\u0432, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u0441\u0442\u0440\u043e\u0438\u0442\u044c \u0434\u0438\u0430\u0433\u0440\u0430\u043c\u043c\u0443.</p>'; return; }
+    var cols=[];
+    if(ganttScale==='day'){ for(var d=new Date(min); d<=max; d=new Date(d.getTime()+86400000)){ cols.push({d:new Date(d)}); } }
+    else { var dm=new Date(min.getFullYear(),min.getMonth(),1); while(dm<=max){ cols.push({d:new Date(dm)}); dm=new Date(dm.getFullYear(),dm.getMonth()+1,1); } }
+    function colHas(c,a,b){ if(!a||!b) return false; if(ganttScale==='day'){ return c.d>=stripTime(a)&&c.d<=stripTime(b); } var cs=new Date(c.d.getFullYear(),c.d.getMonth(),1), ce=new Date(c.d.getFullYear(),c.d.getMonth()+1,0); return !(b<cs||a>ce); }
+    var monthSpans='';
+    if(ganttScale==='day'){
+      var hdr1='<tr><th class="srk-gname">\u042d\u0442\u0430\u043f / \u0414\u0435\u043d\u044c</th>', cur=-1, span=0, acc='';
+      cols.forEach(function(c,idx){ var m=c.d.getMonth()+'-'+c.d.getFullYear(); if(m!==cur){ if(span>0)acc+='<th colspan="'+span+'" style="background:#dde8f7">'+monthName(cols[idx-1].d.getMonth())+' '+cols[idx-1].d.getFullYear()+'</th>'; cur=m; span=0; } span++; });
+      acc+='<th colspan="'+span+'" style="background:#dde8f7">'+monthName(cols[cols.length-1].d.getMonth())+' '+cols[cols.length-1].d.getFullYear()+'</th>';
+      hdr1+=acc+'</tr>';
+      var hdr2='<tr><th class="srk-gname"></th>'+cols.map(function(c){return '<th>'+c.d.getDate()+'</th>';}).join('')+'</tr>';
+      monthSpans=hdr1+hdr2;
+    } else { monthSpans='<tr><th class="srk-gname">\u042d\u0442\u0430\u043f / \u041c\u0435\u0441\u044f\u0446</th>'+cols.map(function(c){return '<th>'+monthName(c.d.getMonth())+'<br>'+c.d.getFullYear()+'</th>';}).join('')+'</tr>'; }
+    var colMap={green:'#16a34a',yellow:'#f59e0b',red:'#dc2626',gray:'#94a3b8'};
+    var rows=stages.map(function(st,i){
+      var c=stageColor(st), ps=pd(st.planStart), pe=pd(st.planEnd), fs=pd(st.factStart), fe=pd(st.factEnd);
+      var cells=cols.map(function(col){ var inPlan=colHas(col,ps,pe), inFact=colHas(col,fs,fe||(st.status!=='done'?todayD():fe)), bg='';
+        if(ganttRole==='zakaz'){ bg=inPlan?'#1976d2':''; } else { if(inFact) bg=colMap[c]; else if(inPlan) bg='#cfe0f5'; }
+        return '<td style="background:'+(bg||'transparent')+'"></td>'; }).join('');
+      return '<tr><td class="srk-gname" style="border-left:5px solid '+colMap[c]+'">'+esc(st.name||('\u042d\u0442\u0430\u043f '+(i+1)))+'</td>'+cells+'</tr>';
+    }).join('');
+    area.innerHTML='<table class="srk-gtable">'+monthSpans+rows+'</table>'
+      +'<div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:#555;flex-wrap:wrap"><span>'
+      +(ganttRole==='zakaz'?'<b style="color:#1976d2">\u2586</b> \u041f\u043b\u0430\u043d':'<b style="color:#cfe0f5">\u2586</b> \u041f\u043b\u0430\u043d &nbsp; <b style="color:#16a34a">\u2586</b> \u0424\u0430\u043a\u0442 (\u0432 \u043d\u043e\u0440\u043c\u0435) &nbsp; <b style="color:#f59e0b">\u2586</b> \u0420\u0438\u0441\u043a &nbsp; <b style="color:#dc2626">\u2586</b> \u0417\u0430\u0434\u0435\u0440\u0436\u043a\u0430')
+      +'</span></div>';
+  }
+  window.renderGanttView=renderGanttView;
+
+  // ---------- init ----------
+  function buildUI(){
+    if(document.getElementById('srokiOverlay')) return;
+    var ov=document.createElement('div'); ov.id='srokiOverlay';
+    ov.innerHTML='<div class="srk-modal"><div class="srk-head"><h2>\ud83d\udcc5 \u0421\u0440\u043e\u043a\u0438 \u043f\u0440\u043e\u0435\u043a\u0442\u0430</h2><button class="srk-x" id="srkClose">\u2715</button></div><div class="srk-body" id="srkBody"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){ if(e.target===ov) closeSroki(); });
+    document.getElementById('srkClose').onclick=closeSroki;
+    var fab=document.createElement('button'); fab.id='srokiFab'; fab.textContent='\ud83d\udcc5 \u0421\u0440\u043e\u043a\u0438'; fab.onclick=openSroki; document.body.appendChild(fab);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',buildUI); else buildUI();
+})();
+</script>
+<!-- ===== /МОДУЛЬ «СРОКИ» ===== -->
 </body>
 </html>
 
