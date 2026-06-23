@@ -6947,6 +6947,175 @@ try{ wireBtn(); }catch(e){}
 })();
 </script>
 <!-- ===== MODULE: BASE FIX (DBFIX) end ===== -->
+
+<script>
+
+(function(){
+if(window.__ACTS_MOD)return; window.__ACTS_MOD=1;
+
+function S(){try{return (new Function('return (typeof STATE!=="undefined"&&STATE)?STATE:null'))();}catch(e){return null;}}
+function save(){try{if(typeof saveLocal==='function')saveLocal();}catch(e){} try{if(typeof scheduleCloudSync==='function')scheduleCloudSync();}catch(e){}}
+function money(v){v=Math.round((Number(v)||0)*100)/100;var s=v.toFixed(2).replace('.',',');return s.replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+function esc(s){s=(s==null?'':String(s));return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function uid(){return 'act_'+Date.now()+'_'+Math.floor(Math.random()*1e6);}
+function today(){var d=new Date();return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear();}
+function num2(v){return (Math.round((Number(v)||0)*100)/100);}
+
+function activeProj(){var st=S();if(!st||!st.projects)return null;return st.projects.find(function(x){return x.id===st.activeId;})||null;}
+function company(){var st=S();return (st&&st.companies&&st.companies[0])||{};}
+function projManager(p){var st=S();if(!st||!p)return null;return (st.managers||[]).find(function(m){return m.id===p.managerId;})||null;}
+
+function selWorks(p){return (p.works||[]).filter(function(w){return w.selected!==false;});}
+function totals(p){var tm=0,tc=0;selWorks(p).forEach(function(w){var q=Number(w.qty)||0;tm+=q*(Number(w.priceM)||0);tc+=q*(Number(w.priceC)||0);});var d=Number(p.discount)||0;return {m:tm,c:tc,cd:tc*(1-d/100),disc:d};}
+
+function buildActHTML(p, kind){
+  var st=S(); var co=company(); var mgr=projManager(p);
+  var t=totals(p);
+  var isMaster = kind==='master';
+  var priceField = isMaster?'priceM':'priceC';
+  var total = isMaster? t.m : t.cd;
+  var works = selWorks(p);
+  var rows=''; var i=0;
+  works.forEach(function(w){
+    i++;
+    var q=Number(w.qty)||0; var pr=Number(w[priceField])||0; var sum=q*pr;
+    rows+='<tr><td style="text-align:center">'+i+'</td><td>'+esc(w.name||'')+'</td>'
+      +'<td style="text-align:center">'+esc(w.unit||'')+'</td>'
+      +'<td style="text-align:right">'+money(q)+'</td>'
+      +'<td style="text-align:right">'+money(pr)+'</td>'
+      +'<td style="text-align:right">'+money(sum)+'</td></tr>';
+  });
+  var title = isMaster ? '\u0410\u041a\u0422 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043d\u044b\u0445 \u0440\u0430\u0431\u043e\u0442 (\u0434\u043b\u044f \u043c\u0430\u0441\u0442\u0435\u0440\u0430)' : '\u0410\u041a\u0422 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043d\u044b\u0445 \u0440\u0430\u0431\u043e\u0442 (\u0434\u043b\u044f \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430)';
+  var execName = isMaster ? (mgr?mgr.full_name:'') : (co.name||co.short||'');
+  var execLabel = isMaster ? '\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c (\u043c\u0430\u0441\u0442\u0435\u0440)' : '\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c (\u043f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a)';
+  var clientName = isMaster ? (co.short||co.name||'') : (p.client||'');
+  var clientLabel = isMaster ? '\u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a (\u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044f)' : '\u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a';
+  var discLine = (!isMaster && t.disc>0) ? '<div>\u0421\u043a\u0438\u0434\u043a\u0430: '+money(t.disc)+' %</div>' : '';
+  var reqBlock = isMaster ? '' : ('<div style="margin-top:6px;font-size:12px;color:#555">'+esc(co.requisites||'')+'</div>');
+
+  var h='';
+  h+='<div style="font-family:Arial,sans-serif;color:#111;max-width:760px;margin:0 auto;padding:8px">';
+  h+='<div style="text-align:center;font-weight:700;font-size:18px;margin-bottom:2px">'+esc(co.name||co.short||'\u0413\u0430\u043c\u0437\u0430\u0442\u043e\u0432 \u0421\u0422\u0420\u041e\u0419')+'</div>';
+  h+='<div style="text-align:center;font-size:12px;color:#555;margin-bottom:12px">'+esc(co.address||'')+(co.phone?(' | '+esc(co.phone)):'')+'</div>';
+  h+='<div style="text-align:center;font-weight:700;font-size:16px;margin:10px 0">'+title+'</div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px">';
+  h+='<div>\u041e\u0431\u044a\u0435\u043a\u0442: <b>'+esc(p.name||'')+'</b><br>\u0410\u0434\u0440\u0435\u0441: '+esc(p.address||'')+'</div>';
+  h+='<div style="text-align:right">\u0414\u0430\u0442\u0430: <b>'+today()+'</b>'+(p.contractNumber?('<br>\u0414\u043e\u0433\u043e\u0432\u043e\u0440 \u2116 '+esc(p.contractNumber)):'')+'</div>';
+  h+='</div>';
+  h+='<div style="font-size:13px;margin-bottom:4px">'+execLabel+': <b>'+esc(execName)+'</b></div>';
+  h+='<div style="font-size:13px;margin-bottom:10px">'+clientLabel+': <b>'+esc(clientName)+'</b></div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px" border="1" cellpadding="5">';
+  h+='<thead><tr style="background:#f0f0f0;font-weight:700">'
+    +'<td style="text-align:center">\u2116</td><td>\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435 \u0440\u0430\u0431\u043e\u0442</td><td style="text-align:center">\u0415\u0434.</td>'
+    +'<td style="text-align:right">\u041a\u043e\u043b-\u0432\u043e</td><td style="text-align:right">\u0426\u0435\u043d\u0430</td><td style="text-align:right">\u0421\u0443\u043c\u043c\u0430</td></tr></thead>';
+  h+='<tbody>'+rows+'</tbody>';
+  h+='<tfoot><tr style="font-weight:700"><td colspan="5" style="text-align:right">\u0418\u0422\u041e\u0413\u041e:</td><td style="text-align:right">'+money(total)+' \u0440\u0443\u0431.</td></tr></tfoot>';
+  h+='</table>';
+  h+=discLine;
+  h+=reqBlock;
+  h+='<div style="display:flex;justify-content:space-between;margin-top:40px;font-size:13px">';
+  h+='<div>'+execLabel+'<br>_______________ / '+esc(execName)+'</div>';
+  h+='<div style="text-align:right">'+clientLabel+'<br>_______________ / '+esc(clientName)+'</div>';
+  h+='</div>';
+  h+='</div>';
+  return {html:h, total:total, title:title};
+}
+
+function printHTML(inner){
+  var w=window.open('','_blank');
+  if(!w){ alert('\u0420\u0430\u0437\u0440\u0435\u0448\u0438\u0442\u0435 \u0432\u0441\u043f\u043b\u044b\u0432\u0430\u044e\u0449\u0438\u0435 \u043e\u043a\u043d\u0430 \u0434\u043b\u044f \u043f\u0435\u0447\u0430\u0442\u0438'); return; }
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>\u0410\u043a\u0442</title>'
+    +'<style>@media print{button{display:none}} body{margin:16px}</style></head><body>'
+    +'<div style="text-align:center;margin-bottom:10px"><button onclick="window.print()" style="padding:8px 16px;font-size:14px;cursor:pointer">\u041f\u0435\u0447\u0430\u0442\u044c / \u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c PDF</button></div>'
+    +inner+'</body></html>');
+  w.document.close();
+}
+
+function saveAct(p, kind, total){
+  if(!Array.isArray(p.acts)) p.acts=[];
+  p.acts.push({ id:uid(), kind:kind, total:num2(total), date:today(), ts:Date.now() });
+  save();
+}
+
+function closeModal(){ var m=document.getElementById('actsModal'); if(m) m.remove(); }
+
+function renderActs(){
+  closeModal();
+  var p=activeProj();
+  var wrap=document.createElement('div');
+  wrap.id='actsModal';
+  wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100040;display:flex;align-items:center;justify-content:center;padding:16px';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;color:#111;max-width:520px;width:100%;max-height:90vh;overflow:auto;border-radius:14px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)';
+  var head='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:18px;font-weight:700">'+L.title+'</div><button id="actsX" style="border:none;background:#eee;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:18px">\u00d7</button></div>';
+  var body='';
+  if(!p){
+    body='<div style="padding:20px 0;color:#a00">'+L.noProj+'</div>';
+  } else {
+    var works=selWorks(p);
+    var t=totals(p);
+    if(!works.length){
+      body='<div style="padding:20px 0;color:#a00">'+L.noWorks+'</div>';
+    } else {
+      body+='<div style="font-size:14px;margin-bottom:6px">\u041e\u0431\u044a\u0435\u043a\u0442: <b>'+esc(p.name||'')+'</b></div>';
+      body+='<div style="font-size:13px;color:#555;margin-bottom:14px">\u0420\u0430\u0431\u043e\u0442 \u0432 \u0441\u043c\u0435\u0442\u0435: <b>'+works.length+'</b></div>';
+      body+='<div style="border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:12px">';
+      body+='<div style="font-weight:700;margin-bottom:6px">'+L.forMaster+'</div>';
+      body+='<div style="font-size:13px;color:#555;margin-bottom:8px">\u0421\u0443\u043c\u043c\u0430 \u043f\u043e \u0446\u0435\u043d\u0430\u043c \u043c\u0430\u0441\u0442\u0435\u0440\u0430: <b>'+money(t.m)+' \u0440\u0443\u0431.</b></div>';
+      body+='<button data-act="master" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:14px">\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0430\u043a\u0442 \u043c\u0430\u0441\u0442\u0435\u0440\u0430</button>';
+      body+='</div>';
+      body+='<div style="border:1px solid #eee;border-radius:10px;padding:12px">';
+      body+='<div style="font-weight:700;margin-bottom:6px">'+L.forClient+'</div>';
+      body+='<div style="font-size:13px;color:#555;margin-bottom:8px">\u0421\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430: <b>'+money(t.cd)+' \u0440\u0443\u0431.</b>'+(t.disc>0?(' (\u0441\u043a\u0438\u0434\u043a\u0430 '+money(t.disc)+'%)'):'')+'</div>';
+      body+='<button data-act="client" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:14px">\u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0430\u043a\u0442 \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430</button>';
+      body+='</div>';
+    }
+  }
+  box.innerHTML=head+body;
+  wrap.appendChild(box);
+  document.body.appendChild(wrap);
+  wrap.addEventListener('click',function(e){ if(e.target===wrap) closeModal(); });
+  var x=document.getElementById('actsX'); if(x) x.onclick=closeModal;
+  [].forEach.call(box.querySelectorAll('[data-act]'),function(b){
+    b.onclick=function(){
+      var kind=b.getAttribute('data-act');
+      var r=buildActHTML(p,kind);
+      saveAct(p,kind,r.total);
+      printHTML(r.html);
+    };
+  });
+}
+
+var L={
+  acts:'\u0410\u043a\u0442\u044b',
+  title:'\u0410\u043a\u0442\u044b \u043f\u043e \u043f\u0440\u043e\u0435\u043a\u0442\u0443',
+  forMaster:'\u0410\u043a\u0442 \u0434\u043b\u044f \u043c\u0430\u0441\u0442\u0435\u0440\u0430',
+  forClient:'\u0410\u043a\u0442 \u0434\u043b\u044f \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430',
+  noProj:'\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043f\u0440\u043e\u0435\u043a\u0442, \u0447\u0442\u043e\u0431\u044b \u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0430\u043a\u0442',
+  noWorks:'\u0412 \u0441\u043c\u0435\u0442\u0435 \u043d\u0435\u0442 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u0445 \u0440\u0430\u0431\u043e\u0442'
+};
+
+function injectBtn(){
+  var hdr=document.querySelector('.hdr-actions');
+  if(!hdr) return;
+  if(hdr.querySelector('[data-acts-btn]')) return;
+  var btn=document.createElement('button');
+  btn.className='back-btn';
+  btn.setAttribute('data-acts-btn','1');
+  btn.textContent='\ud83d\udcc4 '+L.acts;
+  btn.onclick=function(e){ e.preventDefault(); e.stopPropagation(); renderActs(); };
+  var ref=hdr.querySelector('[data-dbfix-btn]');
+  if(ref&&ref.parentNode){ ref.parentNode.insertBefore(btn, ref.nextSibling); }
+  else { hdr.appendChild(btn); }
+}
+
+var ka=setInterval(injectBtn, 1500);
+injectBtn();
+setTimeout(injectBtn, 400);
+
+})();
+
+</script>
 </body>
 </html>
 
