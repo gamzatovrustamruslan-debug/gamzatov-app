@@ -7414,7 +7414,7 @@ document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }
     tk.style.setProperty('display','block','important');
     tk.style.setProperty('box-sizing','border-box','important');
     tk.style.setProperty('max-width','100%','important');
-    if(w>40){ tk.style.setProperty('width', w+'px', 'important'); }
+    if(w>40){ tk.style.setProperty('width', w+'px', 'important'); tk.style.setProperty('min-width', w+'px', 'important'); tk.style.setProperty('flex', 'none', 'important'); }
     else { tk.style.setProperty('width','100%','important'); tk.style.setProperty('min-width','220px','important'); }
     if(ts){ var h=Math.round(ts.getBoundingClientRect().height); if(h>10) tk.style.setProperty('height', h+'px','important'); }
     if(tk.getBoundingClientRect().width>40) tk.setAttribute('data-mtf3w','1');
