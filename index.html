@@ -6287,8 +6287,9 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
 .srk-tab.on{background:#1976d2;color:#fff;border-color:#1976d2}
 #srokiFab{position:fixed;right:18px;bottom:84px;z-index:9000;background:linear-gradient(135deg,#1976d2,#0d47a1);color:#fff;border:0;border-radius:30px;padding:13px 20px;font-size:15px;font-weight:700;box-shadow:0 8px 22px rgba(13,71,161,.4);cursor:pointer}
 .srk-section-title{font-weight:800;color:#11305a;margin:18px 0 8px;font-size:15px}
+.srk-objshift{margin-top:4px}
+.srk-objshift select{border:1px solid #d4deeb;border-radius:6px;padding:2px 4px;font-size:10px;font-family:inherit;color:#6b7d97;background:#fff}
 </style>
-
 <script>
 (function(){
   function persist(){ try{ saveLocal&&saveLocal(); }catch(e){} try{ scheduleCloudSync&&scheduleCloudSync(); }catch(e){} }
@@ -6298,13 +6299,9 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
   function todayD(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
   function fmt(d){ if(!d) return '\u2014'; try{return fmtRuDate?fmtRuDate(d):(d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear());}catch(e){ return d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear(); } }
   function esc(s){ return (s||'').toString().replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
-
   function stageShift(st){
     var planEnd=pd(st.planEnd), factEnd=pd(st.factEnd), auto=0;
-    if(planEnd){
-      if(factEnd){ auto=daysBetween(planEnd,factEnd); }
-      else if(st.status!=='done' && todayD()>planEnd){ auto=daysBetween(planEnd,todayD()); }
-    }
+    if(planEnd){ if(factEnd){ auto=daysBetween(planEnd,factEnd); } else if(st.status!=='done' && todayD()>planEnd){ auto=daysBetween(planEnd,todayD()); } }
     var manual=(typeof st.shiftDays==='number')?st.shiftDays:null;
     return { auto:auto, manual:manual, total:(manual!==null?manual:auto) };
   }
@@ -6312,30 +6309,33 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
     var planEnd=pd(st.planEnd), planStart=pd(st.planStart), factEnd=pd(st.factEnd), sh=stageShift(st);
     if(st.status==='done'||factEnd){ return sh.total>0?'red':'green'; }
     if(!planEnd) return 'gray';
-    var t=todayD();
-    if(t>planEnd) return 'red';
-    var dur=planStart?Math.max(1,daysBetween(planStart,planEnd)):null;
-    var left=daysBetween(t,planEnd);
-    var threshold=dur?Math.max(3,Math.ceil(dur*0.2)):3;
-    if(left<=threshold) return 'yellow';
-    return 'green';
+    var t=todayD(); if(t>planEnd) return 'red';
+    var dur=planStart?Math.max(1,daysBetween(planStart,planEnd)):null, left=daysBetween(t,planEnd), threshold=dur?Math.max(3,Math.ceil(dur*0.2)):3;
+    if(left<=threshold) return 'yellow'; return 'green';
   }
   function progressPct(st){
-    var ps=pd(st.planStart), pe=pd(st.planEnd);
-    if(!ps||!pe) return 0;
+    var ps=pd(st.planStart), pe=pd(st.planEnd); if(!ps||!pe) return 0;
     if(st.status==='done'||pd(st.factEnd)) return 100;
     var t=todayD(), tot=Math.max(1,daysBetween(ps,pe)), done=daysBetween(ps,t);
     return Math.min(100,Math.max(0,Math.round(done/tot*100)));
   }
+  function objShiftMode(){ var p=P(); return (p&&p.objShiftMode)||'maxstage'; }
+  window.srkSetObjShiftMode=function(v){ var p=P(); if(p){ p.objShiftMode=v; persist(); renderSroki(); } };
+  function objectShift(){
+    var p=P(); if(!p) return 0;
+    if(objShiftMode()==='enddate'){
+      var de=pd(p.dateEnd), stages=p.stages||[], maxPlan=null, maxFact=null;
+      stages.forEach(function(st){ var pe=pd(st.planEnd), fe=pd(st.factEnd)||(st.status!=='done'?todayD():null); if(pe&&(!maxPlan||pe>maxPlan))maxPlan=pe; if(fe&&(!maxFact||fe>maxFact))maxFact=fe; });
+      var base=maxPlan||de; if(!base) return 0; var cur=maxFact||todayD(); var sh=daysBetween(base,cur); return sh>0?sh:0;
+    }
+    var m=0; (p.stages||[]).forEach(function(st){ m=Math.max(m,stageShift(st).total||0); }); return m;
+  }
 
-  // ---------- state / companies ----------
   function getState(){ try{ return JSON.parse(localStorage.getItem('gamzatov_smeta_v4'))||{}; }catch(e){ return {}; } }
   function setState(st){ localStorage.setItem('gamzatov_smeta_v4',JSON.stringify(st)); try{scheduleCloudSync&&scheduleCloudSync();}catch(e){} }
   function defaultCompany(){
     var b=(typeof getBrand==='function')?getBrand():{}; var req=b.__req||{};
-    return { id:'own', name:b.name||'\u041c\u043e\u044f \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044f', short:b.contractor||'', inn:'', kpp:'', ogrn:'',
-      director:req.fio||b.contractor||'', address:req.reg||'', phone:b.phone||'', email:b.email||'',
-      bank:'', account:'', requisites:[req.passport,req.live].filter(Boolean).join('; ') };
+    return { id:'own', name:b.name||'\u041c\u043e\u044f \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044f', short:b.contractor||'', inn:'', kpp:'', ogrn:'', director:req.fio||b.contractor||'', address:req.reg||'', phone:b.phone||'', email:b.email||'', bank:'', account:'', requisites:[req.passport,req.live].filter(Boolean).join('; ') };
   }
   function getCompanies(){ var st=getState(); if(!Array.isArray(st.companies)||!st.companies.length){ st.companies=[defaultCompany()]; st.activeCompanyId='own'; setState(st); } return st.companies; }
   function getActiveCompany(){ var st=getState(), list=getCompanies(); return list.find(function(c){return c.id===st.activeCompanyId;})||list[0]; }
@@ -6343,8 +6343,6 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
   window.srkAddCompany=function(){ getCompanies(); var fresh=getState(); fresh.companies.push({id:'c'+Date.now(),name:'\u041d\u043e\u0432\u0430\u044f \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044f',short:'',inn:'',kpp:'',ogrn:'',director:'',address:'',phone:'',email:'',bank:'',account:'',requisites:''}); setState(fresh); renderCompanies(); };
   window.srkDelCompany=function(id){ if(!confirm('\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044e \u0438\u0437 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0430?')) return; var st=getState(); st.companies=(st.companies||[]).filter(function(c){return c.id!==id;}); if(st.activeCompanyId===id) st.activeCompanyId=(st.companies[0]&&st.companies[0].id)||null; setState(st); renderCompanies(); };
   window.srkCompanyField=function(id,f,v){ var st=getState(); var c=(st.companies||[]).find(function(x){return x.id===id;}); if(c){ c[f]=v; setState(st); } };
-
-  // ---------- open/close ----------
   window.openSroki=function(){ renderSroki(); document.getElementById('srokiOverlay').classList.add('open'); };
   window.closeSroki=function(){ document.getElementById('srokiOverlay').classList.remove('open'); };
   window.backToSroki=function(){ renderSroki(); };
@@ -6352,12 +6350,11 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
   window.srkShiftInput=function(i,v){ var p=P(); var n=v===''?null:Number(v); p.stages[i].shiftDays=(n===null||isNaN(n))?null:n; persist(); renderSroki(); };
   window.srkReason=function(i,v){ var p=P(); p.stages[i].shiftReason=v; persist(); };
 
-  // ---------- render main ----------
   function renderSroki(){
     var p=P(), body=document.getElementById('srkBody');
     if(!p){ body.innerHTML='<p style="color:#888">\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043e\u0431\u044a\u0435\u043a\u0442, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u0441\u0440\u043e\u043a\u0438.</p>'; return; }
-    var ds=pd(p.dateStart), de=pd(p.dateEnd), objShift=0, stages=p.stages||[];
-    stages.forEach(function(st){ objShift=Math.max(objShift,stageShift(st).total||0); });
+    var ds=pd(p.dateStart), de=pd(p.dateEnd), objShift=objectShift(), stages=p.stages||[];
+    var mode=objShiftMode();
     var oColor='green';
     if(stages.some(function(st){return stageColor(st)==='red';})) oColor='red';
     else if(stages.some(function(st){return stageColor(st)==='yellow';})) oColor='yellow';
@@ -6366,7 +6363,8 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
     body.innerHTML='<div class="srk-obj">'
       +'<div class="srk-cell"><label>\u041d\u0430\u0447\u0430\u043b\u043e \u0440\u0430\u0431\u043e\u0442</label><div class="v">'+fmt(ds)+'</div></div>'
       +'<div class="srk-cell"><label>\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u0440\u0430\u0431\u043e\u0442</label><div class="v">'+fmt(de)+'</div></div>'
-      +'<div class="srk-cell"><label>\u0421\u0434\u0432\u0438\u0433 \u043f\u043e \u043e\u0431\u044a\u0435\u043a\u0442\u0443</label><div class="v" style="color:'+(objShift>0?'#dc2626':'#16a34a')+'">'+(objShift>0?'+'+objShift+' \u0434\u043d.':'\u043d\u0435\u0442')+'</div></div></div>'
+      +'<div class="srk-cell"><label>\u0421\u0434\u0432\u0438\u0433 \u043f\u043e \u043e\u0431\u044a\u0435\u043a\u0442\u0443</label><div class="v" style="color:'+(objShift>0?'#dc2626':'#16a34a')+'">'+(objShift>0?'+'+objShift+' \u0434\u043d.':'\u043d\u0435\u0442')+'</div>'
+      +'<div class="srk-objshift"><select onchange="srkSetObjShiftMode(this.value)"><option value="maxstage"'+(mode==='maxstage'?' selected':'')+'>\u043c\u0430\u043a\u0441. \u0441\u0434\u0432\u0438\u0433 \u044d\u0442\u0430\u043f\u043e\u0432</option><option value="enddate"'+(mode==='enddate'?' selected':'')+'>\u0441\u0434\u0432\u0438\u0433 \u0434\u0430\u0442\u044b \u0441\u0434\u0430\u0447\u0438</option></select></div></div></div>'
       +'<div class="srk-bar '+oColor+'"><span style="width:'+oPct+'%"></span></div>'
       +'<div class="srk-meta">'+oPct+'% \u0441\u0440\u043e\u043a\u0430'+(left!==null?' \u00b7 '+(left>=0?('\u043e\u0441\u0442\u0430\u043b\u043e\u0441\u044c '+left+' \u0434\u043d.'):('\u043f\u0440\u043e\u0441\u0440\u043e\u0447\u043a\u0430 '+(-left)+' \u0434\u043d.')):'')+'</div>'
       +'<div class="srk-btns"><button class="srk-btn act" onclick="openProdlenie()">\ud83d\udcc4 \u0410\u043a\u0442 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f \u0441\u0440\u043e\u043a\u043e\u0432</button>'
@@ -6397,7 +6395,6 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
   }
   window.renderSroki=renderSroki; window.renderSrokiStages=renderSrokiStages;
 
-  // ---------- companies UI ----------
   function renderCompanies(){
     var list=getCompanies(), st=getState(), act=st.activeCompanyId, body=document.getElementById('srkBody');
     body.innerHTML='<button class="srk-tab" onclick="backToSroki()">\u2190 \u041a \u0441\u0440\u043e\u043a\u0430\u043c</button>'
@@ -6426,7 +6423,6 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
   window.openCompanies=function(){ renderCompanies(); document.getElementById('srokiOverlay').classList.add('open'); };
   window.renderCompanies=renderCompanies;
 
-  // ---------- prodlenie act ----------
   window.openProdlenie=function(stageIdx){
     var p=P(); if(!p){ alert('\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u043e\u0431\u044a\u0435\u043a\u0442'); return; }
     var stages=p.stages||[], body=document.getElementById('srkBody');
@@ -6440,11 +6436,13 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
       +'<div class="srk-f"><label>\u041d\u043e\u0432\u044b\u0439 \u0441\u0440\u043e\u043a \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u044f</label><input id="prNewDate" placeholder="\u0434\u0434.\u043c\u043c.\u0433\u0433\u0433\u0433"></div>'
       +'<div class="srk-f"><label>\u041a\u043e\u043b-\u0432\u043e \u0434\u043d\u0435\u0439 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f</label><input id="prDays" type="number"></div>'
       +'<div class="srk-f"><label>\u0414\u0430\u0442\u0430 \u0430\u043a\u0442\u0430</label><input id="prActDate"></div>'
+      +'<div class="srk-f"><label>\u0413\u043e\u0440\u043e\u0434</label><input id="prCity" placeholder="\u0413\u043e\u0440\u043e\u0434"></div>'
       +'<div class="srk-f" style="grid-column:1/3"><label>\u041f\u0440\u0438\u0447\u0438\u043d\u0430 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f</label><input id="prReason" placeholder="\u041f\u0440\u0438\u0447\u0438\u043d\u0430..."></div></div>'
       +'<button class="srk-btn act" style="margin-top:10px" onclick="printProdlenie()">\ud83d\udda8 \u0421\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0438 \u043f\u0435\u0447\u0430\u0442\u044c \u0430\u043a\u0442\u0430</button>'
       +'<div id="prPreview" style="margin-top:14px;border:1px solid #e3eaf4;border-radius:12px;padding:16px;background:#fff"></div>';
     var t=new Date(), td=t.getDate()+'.'+(t.getMonth()+1)+'.'+t.getFullYear();
     document.getElementById('prActDate').value=td;
+    document.getElementById('prCity').value=(p.actCity||getState().actCity||'\u041c\u043e\u0441\u043a\u0432\u0430');
     document.getElementById('prReason').value=st.shiftReason||'';
     var sh=stageShift(st).total; if(sh>0) document.getElementById('prDays').value=sh;
     document.getElementById('prEtap').value=sel;
@@ -6458,11 +6456,13 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
     var reason=document.getElementById('prReason').value||st.shiftReason||'________________';
     var newDate=document.getElementById('prNewDate').value||'________';
     var actDate=document.getElementById('prActDate').value||'';
+    var city=document.getElementById('prCity').value||'';
+    try{ p.actCity=city; }catch(e){}
     var num=(p.contractNumber||'\u0431/\u043d');
     document.getElementById('prPreview').innerHTML='<div id="prDoc" style="font-family:\'Times New Roman\',serif;color:#000;line-height:1.5;font-size:14px">'
       +'<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:4px">\u0410\u041a\u0422 \u041f\u0420\u041e\u0414\u041b\u0415\u041d\u0418\u042f \u0421\u0420\u041e\u041a\u041e\u0412</div>'
       +'<div style="text-align:center;margin-bottom:14px">\u043a \u0414\u043e\u0433\u043e\u0432\u043e\u0440\u0443 \u043f\u043e\u0434\u0440\u044f\u0434\u0430 \u2116 '+esc(num)+' \u043e\u0442 '+esc(p.contractDate||'____')+'</div>'
-      +'<div style="display:flex;justify-content:space-between"><span>'+(actDate?'\u0433. \u041c\u043e\u0441\u043a\u0432\u0430':'')+'</span><span>'+esc(actDate)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between"><span>'+(city?('\u0433. '+esc(city)):'')+'</span><span>'+esc(actDate)+'</span></div>'
       +'<p><b>\u041f\u043e\u0434\u0440\u044f\u0434\u0447\u0438\u043a:</b> '+esc(comp.name||'')+(comp.short?(' ('+esc(comp.short)+')'):'')+(comp.director?(', \u0432 \u043b\u0438\u0446\u0435 '+esc(comp.director)):'')+(comp.inn?(', \u0418\u041d\u041d '+esc(comp.inn)):'')+'.</p>'
       +'<p><b>\u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a:</b> '+esc(p.client||p.name||'________________')+(p.phone?(', \u0442\u0435\u043b. '+esc(p.phone)):'')+(p.address?(', \u0430\u0434\u0440\u0435\u0441: '+esc(p.address)):'')+'.</p>'
       +'<p><b>\u041e\u0431\u044a\u0435\u043a\u0442:</b> '+esc(p.name||'')+'.</p>'
@@ -6474,9 +6474,8 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
   }
   window.prRenderPreview=prRenderPreview;
   window.printProdlenie=function(){ prRenderPreview(); var html=document.getElementById('prDoc').outerHTML; var w=window.open('','_blank'); w.document.write('<html><head><title>\u0410\u043a\u0442 \u043f\u0440\u043e\u0434\u043b\u0435\u043d\u0438\u044f \u0441\u0440\u043e\u043a\u043e\u0432</title></head><body style="padding:40px">'+html+'</body></html>'); w.document.close(); w.focus(); setTimeout(function(){w.print();},300); };
-  document.addEventListener('input',function(e){ if(['prDays','prReason','prNewDate','prActDate'].indexOf(e.target.id)>=0) prRenderPreview(); });
+  document.addEventListener('input',function(e){ if(['prDays','prReason','prNewDate','prActDate','prCity'].indexOf(e.target.id)>=0) prRenderPreview(); });
 
-  // ---------- gantt ----------
   var ganttRole='prorab', ganttScale='month';
   function monthName(m){ return ['\u042f\u043d\u0432','\u0424\u0435\u0432','\u041c\u0430\u0440','\u0410\u043f\u0440','\u041c\u0430\u0439','\u0418\u044e\u043d','\u0418\u044e\u043b','\u0410\u0432\u0433','\u0421\u0435\u043d','\u041e\u043a\u0442','\u041d\u043e\u044f','\u0414\u0435\u043a'][m]; }
   function stripTime(x){ var y=new Date(x); y.setHours(0,0,0,0); return y; }
@@ -6527,21 +6526,29 @@ window.GAMZ3 = { toggleMaster:toggleMaster, copyMaster:copyMaster, refreshMaster
       +'</span></div>';
   }
   window.renderGanttView=renderGanttView;
-
-  // ---------- init ----------
+  function wireDeadlineBlock(){
+    var dl=document.getElementById('deadlineBlock');
+    if(dl && !dl.__srkWired){ dl.__srkWired=true; dl.style.cursor='pointer'; dl.title='\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u0440\u043e\u043a\u0438'; dl.addEventListener('click',function(){ openSroki(); }); }
+  }
   function buildUI(){
-    if(document.getElementById('srokiOverlay')) return;
-    var ov=document.createElement('div'); ov.id='srokiOverlay';
-    ov.innerHTML='<div class="srk-modal"><div class="srk-head"><h2>\ud83d\udcc5 \u0421\u0440\u043e\u043a\u0438 \u043f\u0440\u043e\u0435\u043a\u0442\u0430</h2><button class="srk-x" id="srkClose">\u2715</button></div><div class="srk-body" id="srkBody"></div></div>';
-    document.body.appendChild(ov);
-    ov.addEventListener('click',function(e){ if(e.target===ov) closeSroki(); });
-    document.getElementById('srkClose').onclick=closeSroki;
-    var fab=document.createElement('button'); fab.id='srokiFab'; fab.textContent='\ud83d\udcc5 \u0421\u0440\u043e\u043a\u0438'; fab.onclick=openSroki; document.body.appendChild(fab);
+    if(!document.getElementById('srokiOverlay')){
+      var ov=document.createElement('div'); ov.id='srokiOverlay';
+      ov.innerHTML='<div class="srk-modal"><div class="srk-head"><h2>\ud83d\udcc5 \u0421\u0440\u043e\u043a\u0438 \u043f\u0440\u043e\u0435\u043a\u0442\u0430</h2><button class="srk-x" id="srkClose">\u2715</button></div><div class="srk-body" id="srkBody"></div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click',function(e){ if(e.target===ov) closeSroki(); });
+      document.getElementById('srkClose').onclick=closeSroki;
+    }
+    if(!document.getElementById('srokiFab')){
+      var fab=document.createElement('button'); fab.id='srokiFab'; fab.textContent='\ud83d\udcc5 \u0421\u0440\u043e\u043a\u0438'; fab.onclick=openSroki; document.body.appendChild(fab);
+    }
+    wireDeadlineBlock();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',buildUI); else buildUI();
+  setInterval(wireDeadlineBlock, 1500);
 })();
 </script>
 <!-- ===== /МОДУЛЬ «СРОКИ» ===== -->
+
 </body>
 </html>
 
