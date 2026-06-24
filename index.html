@@ -7500,6 +7500,52 @@ document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }
   tick();
 })();
 </script>
+
+
+<script>
+/* MTFIX4: populate the "Zadanie masteru" (#mtMaster) picker from STATE managers + participants */
+(function(){
+  if(window.__MTFIX4) return; window.__MTFIX4=true;
+  function getSTATE(){ try{ return (new Function('return (typeof STATE!=="undefined"&&STATE)?STATE:null'))(); }catch(e){ return null; } }
+  function masters(){
+    var ST=getSTATE(); if(!ST) return [];
+    var list=[];
+    (ST.managers||[]).forEach(function(m){
+      if(!m || !m.id) return;
+      var st=(m.status||'active');
+      if(st && st!=='active' && st!=='\u0430\u043a\u0442\u0438\u0432\u0435\u043d') return;
+      list.push({id:m.id, name:(m.full_name||m.name||'\u041c\u0430\u0441\u0442\u0435\u0440'), phone:m.phone||'', kind:'m'});
+    });
+    (ST.contacts||[]).forEach(function(c){
+      if(!c || !c.id) return;
+      list.push({id:c.id, name:(c.full_name||c.name||'\u0423\u0447\u0430\u0441\u0442\u043d\u0438\u043a'), phone:c.phone||'', kind:'c'});
+    });
+    return list;
+  }
+  function fillMtMaster(){
+    var sel=document.getElementById('mtMaster');
+    if(!sel) return;
+    var list=masters();
+    if(!list.length) return;
+    var have={};
+    Array.prototype.forEach.call(sel.options,function(o){ if(o.value) have[o.value]=true; });
+    var missing=list.filter(function(x){ return !have[x.id]; });
+    if(missing.length===0) return;
+    missing.forEach(function(x){
+      var o=document.createElement('option');
+      o.value=x.id;
+      o.textContent=x.name + (x.phone ? (' \u00b7 '+x.phone) : '');
+      o.setAttribute('data-mtf4','1');
+      sel.appendChild(o);
+    });
+    sel.setAttribute('data-mtf4','1');
+  }
+  function tick(){ try{ fillMtMaster(); }catch(e){} }
+  setInterval(tick, 600);
+  document.addEventListener('click', function(){ setTimeout(tick,100); setTimeout(tick,350); }, true);
+  tick();
+})();
+</script>
 </body>
 </html>
 
