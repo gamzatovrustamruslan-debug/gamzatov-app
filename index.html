@@ -7726,6 +7726,161 @@ document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }
 })();
 </script>
 
+
+
+<script>
+/* MTFIX7: (A) act-PDF object/address wrap fix, (B) reliable specialization save, (C) Uchastniki tab */
+(function(){
+  if(window.__MTFIX7) return; window.__MTFIX7=1;
+  function S(){ try{ return (0,eval)('STATE'); }catch(e){ return (window.STATE||null); } }
+  function norm(s){ return (s||'').toString().toLowerCase().trim(); }
+  function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function toast(msg,col){ try{ var t=document.getElementById('mtf7toast'); if(!t){ t=document.createElement('div'); t.id='mtf7toast'; t.style.cssText='position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:99999;padding:12px 20px;border-radius:10px;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);'; document.body.appendChild(t);} t.textContent=msg; t.style.background=col||'#333'; t.style.display='block'; clearTimeout(t.__h); t.__h=setTimeout(function(){t.style.display='none';},3500);}catch(e){} }
+
+  (function(){
+    var jspdf=window.jspdf; if(!jspdf||!jspdf.jsPDF) return;
+    var Orig=jspdf.__OrigJsPDF||jspdf.jsPDF; jspdf.__OrigJsPDF=Orig;
+    function Cap(){
+      var inst=new Orig(...arguments);
+      try{
+        var oText=inst.text.bind(inst), oSplit=inst.splitTextToSize.bind(inst), oAddPage=inst.addPage.bind(inst);
+        var addrBottom=0, lh=3.7, rowGap=4.5, tableTop=73, curRowY=0, rowMap={};
+        inst.text=function(text,x,y,opts){
+          if(!addrBottom && typeof text==='string' && typeof x==='number' && x<100 && typeof y==='number' && y>=40 && y<60){
+            var avail=(105-x)-3, w=0; try{ w=inst.getTextWidth(text); }catch(e){}
+            if(w>avail && text.length>40){
+              var lines=oSplit(text, avail);
+              for(var li=0;li<lines.length;li++){ oText(lines[li], x, y+li*lh, opts); }
+              addrBottom=y+(lines.length-1)*lh; curRowY=addrBottom+rowGap;
+              return inst;
+            }
+          }
+          var ny=y;
+          if(addrBottom && typeof y==='number' && y>40 && y<tableTop){
+            if(!(y in rowMap)){ rowMap[y]=Math.min(curRowY, tableTop-1); curRowY+=rowGap; }
+            ny=rowMap[y];
+          }
+          return oText(text, x, ny, opts);
+        };
+        inst.addPage=function(){ addrBottom=0; curRowY=0; rowMap={}; return oAddPage.apply(null,arguments); };
+      }catch(e){}
+      return inst;
+    }
+    Cap.prototype=Orig.prototype; Cap.API=Orig.API; Object.keys(Orig).forEach(function(k){try{Cap[k]=Orig[k];}catch(e){}});
+    jspdf.jsPDF=Cap;
+  })();
+
+  function hookSave(){
+    if(typeof window.saveManager!=='function' || window.saveManager.__mtf7) return;
+    var orig=window.saveManager;
+    window.saveManager=async function(id){
+      var st=S();
+      var beforeIds = st&&st.managers ? st.managers.map(function(m){return m.id;}) : [];
+      toast('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435\u2026','#1864ab');
+      var ret=orig.apply(this,arguments);
+      try{
+        var st2=S();
+        var mgr=null;
+        if(id){ mgr=st2.managers.find(function(m){return m.id===id;}); }
+        else { mgr=st2.managers.find(function(m){return beforeIds.indexOf(m.id)<0;}) || st2.managers[st2.managers.length-1]; }
+        if(mgr && typeof window.syncManagerCloud==='function'){
+          await window.syncManagerCloud(mgr);
+          if(typeof window.saveLocal==='function') window.saveLocal();
+          try{
+            if(window.__supa){
+              var r=await window.__supa.from('managers').select('specialization').eq('id',mgr.id).single();
+              toast('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e \u2713','#2b8a3e');
+            } else { toast('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e \u2713','#2b8a3e'); }
+          }catch(e){ toast('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e \u2713','#2b8a3e'); }
+        }
+      }catch(e){ toast('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c','#c92a2a'); }
+      return ret;
+    };
+    window.saveManager.__mtf7=1;
+  }
+
+  var PRESET=['\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c \u043f\u0440\u043e\u0435\u043a\u0442\u0430','\u0423\u043d\u0438\u0432\u0435\u0440\u0441\u0430\u043b','\u041d\u0430\u0447\u0430\u043b\u044c\u043d\u0438\u043a \u0443\u0447\u0430\u0441\u0442\u043a\u0430','\u042d\u043b\u0435\u043a\u0442\u0440\u0438\u043a','\u0421\u0430\u043d\u0442\u0435\u0445\u043d\u0438\u043a','\u041c\u0430\u043b\u044f\u0440','\u0414\u0435\u043c\u043e\u043d\u0442\u0430\u0436','\u041f\u043b\u0438\u0442\u043e\u0447\u043d\u0438\u043a'];
+  function specGroups(){
+    var st=S();
+    var custom=(st&&Array.isArray(st.customRoles))?st.customRoles.filter(function(x){return typeof x==='string'&&x.trim();}):[];
+    var all=PRESET.slice();
+    custom.forEach(function(c){ if(all.map(norm).indexOf(norm(c))<0) all.push(c); });
+    return all;
+  }
+  function groupOf(m, groups){
+    var s=norm(m.specialization);
+    for(var i=0;i<groups.length;i++){ if(s.indexOf(norm(groups[i]))===0) return groups[i]; }
+    return null;
+  }
+  window.mtf7AddSpec=function(){
+    var name=prompt('\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043d\u043e\u0432\u043e\u0439 \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438:');
+    if(!name||!name.trim()) return;
+    var st=S(); if(!Array.isArray(st.customRoles)) st.customRoles=[];
+    if(specGroups().map(norm).indexOf(norm(name))>=0){ toast('\u0422\u0430\u043a\u0430\u044f \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u044f \u0443\u0436\u0435 \u0435\u0441\u0442\u044c','#c92a2a'); window.mtf7Render(); return; }
+    st.customRoles.push(name.trim());
+    if(typeof window.saveLocal==='function') window.saveLocal();
+    if(typeof window.scheduleCloudSync==='function'){ try{ window.scheduleCloudSync(); }catch(e){} }
+    toast('\u0421\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u044f \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0430 \u2713','#2b8a3e');
+    window.mtf7Render();
+  };
+  window.mtf7AddParticipant=function(spec){
+    if(typeof window.addManagerForm==='function'){
+      window.addManagerForm();
+      setTimeout(function(){ var f=document.getElementById('pmSpec'); if(f && spec){ f.value=spec; } var n=document.getElementById('pmName'); if(n) n.focus(); }, 60);
+    }
+  };
+  var mtf7Open={};
+  window.mtf7Toggle=function(g){ mtf7Open[g]=!mtf7Open[g]; window.mtf7Render(); };
+  window.mtf7Render=function(){
+    var body=document.getElementById('pmBody'); if(!body) return;
+    var st=S(); if(!st){ return; }
+    var groups=specGroups();
+    var mgrs=(st.managers||[]).filter(function(m){return m.status!=='archived';});
+    var byGroup={}; groups.forEach(function(g){byGroup[g]=[];}); var others=[];
+    mgrs.forEach(function(m){ var g=groupOf(m,groups); if(g) byGroup[g].push(m); else others.push(m); });
+    var h='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    h+='<button class="pm-add-btn" onclick="mtf7AddParticipant(\'\')" style="background:#2b8a3e;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;">\u2795 \u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0443\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u0430</button>';
+    h+='<button onclick="mtf7AddSpec()" style="background:#1864ab;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;">\u2795 \u041d\u043e\u0432\u0430\u044f \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u044f</button>';
+    h+='</div>';
+    function groupBlock(g, members){
+      var open=!!mtf7Open[g];
+      var s='<div style="border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;">';
+      s+='<div onclick="mtf7Toggle(\''+g.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;background:#f5f5f5;">';
+      s+='<span style="font-weight:700;font-size:15px;">'+esc(g)+'</span>';
+      s+='<span style="display:flex;align-items:center;gap:10px;"><span style="background:#e8590c;color:#fff;border-radius:20px;padding:2px 10px;font-size:13px;font-weight:700;">'+members.length+'</span><span style="color:#888;">'+(open?'\u25b2':'\u25bc')+'</span></span>';
+      s+='</div>';
+      if(open){
+        s+='<div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">';
+        if(members.length){ members.forEach(function(m){ try{ s+='<div>'+window.pmCard(m)+'</div>'; }catch(e){ s+='<div style="padding:8px;border:1px solid #eee;border-radius:8px;">'+esc(m.full_name||'')+'</div>'; } }); }
+        else { s+='<div style="color:#888;padding:6px;">\u041d\u0435\u0442 \u0443\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u043e\u0432</div>'; }
+        s+='<button onclick="mtf7AddParticipant(\''+g.replace(/'/g,"\\'")+'\')" style="background:#fff;border:1.5px dashed #2b8a3e;color:#2b8a3e;border-radius:10px;padding:9px;font-weight:600;cursor:pointer;">\u2795 \u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0432 \u00ab'+esc(g)+'\u00bb</button>';
+        s+='</div>';
+      }
+      s+='</div>';
+      return s;
+    }
+    groups.forEach(function(g){ h+=groupBlock(g, byGroup[g]); });
+    if(others.length){ h+=groupBlock('\u041f\u0440\u043e\u0447\u0438\u0435', others); }
+    h+='</div>';
+    body.innerHTML=h;
+  };
+  function hookRender(){
+    if(typeof window.renderPM!=='function' || window.renderPM.__mtf7) { return; }
+    window.renderPM=function(){ try{ return window.mtf7Render(); }catch(e){} };
+    window.renderPM.__mtf7=1;
+  }
+  function renameTab(){
+    try{
+      var btns=document.querySelectorAll('[onclick]');
+      for(var i=0;i<btns.length;i++){ var oc=btns[i].getAttribute('onclick')||''; if(oc.indexOf("setTab('pm')")>=0){ btns[i].innerHTML='<span class="ti-ic">\ud83d\udc65</span>\u0423\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u0438'; } }
+    }catch(e){}
+  }
+  function tick(){ hookSave(); hookRender(); renameTab(); }
+  tick(); setInterval(tick,1000);
+})();
+</script>
+
 </body>
 </html>
 
