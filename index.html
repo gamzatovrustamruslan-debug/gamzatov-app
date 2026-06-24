@@ -8235,6 +8235,69 @@ ensureFont();
 setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.getElementById('mtf9Archive'))window.mtf9RenderArchive(); injectMasterBtn(); }catch(e){} },1500);
 })();
 </script>
+<script>
+/* MTFIX13: append signals page to client KP. Proven real-flow wrapper. */
+(function(){
+  if(window.__MTFIX13) return; window.__MTFIX13=true;
+  var TITLE="\u041a\u041b\u042e\u0427\u0415\u0412\u042b\u0415 \u041f\u0410\u0420\u0410\u041c\u0415\u0422\u0420\u042b \u041e\u0411\u042a\u0415\u041a\u0422\u0410", L_PARAM="\u041f\u0430\u0440\u0430\u043c\u0435\u0442\u0440", L_STATUS="\u0421\u0442\u0430\u0442\u0443\u0441", L_COMMENT="\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439";
+  var L_OK="\u0412 \u043d\u043e\u0440\u043c\u0435", L_WARN="\u0412\u043d\u0438\u043c\u0430\u043d\u0438\u0435", L_BAD="\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430";
+  function getSignals(){
+    var p = window.activeProject && window.activeProject();
+    if(!p || !p.keyParams || !p.keyParams.items) return null;
+    var items=p.keyParams.items, MAIN=window.__mtf9MAIN||[], ADD=window.__mtf9ADD||[], rows=[];
+    MAIN.forEach(function(lab,i){var v=items["a_"+i]; if(v&&(v.checked||v.status||v.note)) rows.push({label:String(lab),status:v.status||"",note:v.note||""});});
+    ADD.forEach(function(lab,i){var v=items["m_"+i]; if(v&&(v.checked||v.status||v.note)) rows.push({label:String(lab),status:v.status||"",note:v.note||""});});
+    return rows.length?{p:p,rows:rows}:null;
+  }
+  function sColor(s){ if(s==="green")return[46,125,50]; if(s==="yellow")return[245,124,0]; if(s==="red")return[198,40,40]; return[117,117,117]; }
+  function sText(s){ if(s==="green")return L_OK; if(s==="yellow")return L_WARN; if(s==="red")return L_BAD; return "-"; }
+  function appendSignalsPage(doc){
+    var sig=getSignals(); if(!sig) return false;
+    var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+    doc.addPage();
+    try{ doc.setFont("DV","normal"); }catch(e){}
+    var y=20;
+    try{ if(window.drawBrandHeader){ y=window.drawBrandHeader(doc,PW,{title:TITLE,date:"",objname:(sig.p.name||""),address:(sig.p.address||""),noParties:true}); } }catch(e){ y=40; }
+    if(!y||y<20) y=40;
+    var mL=14, mR=PW-14, rowH=9;
+    doc.setFillColor(13,71,161); doc.rect(mL,y,mR-mL,rowH,"F");
+    doc.setTextColor(255,255,255); doc.setFontSize(9); try{doc.setFont("DV","normal");}catch(e){}
+    doc.text(L_PARAM, mL+3, y+6); doc.text(L_STATUS, mR-58, y+6); doc.text(L_COMMENT, mR-38, y+6);
+    y+=rowH;
+    sig.rows.forEach(function(r,idx){
+      if(y>PH-20){ doc.addPage(); try{doc.setFont("DV","normal");}catch(e){} y=20; }
+      if(idx%2===0){ doc.setFillColor(250,250,250); doc.rect(mL,y,mR-mL,rowH,"F"); }
+      doc.setDrawColor(224,224,224); doc.setLineWidth(0.1); doc.line(mL,y+rowH,mR,y+rowH);
+      doc.setTextColor(33,33,33); doc.setFontSize(8.5);
+      var lbl=doc.splitTextToSize(r.label, mR-mL-78); doc.text(lbl[0]||"", mL+3, y+6);
+      var c=sColor(r.status); doc.setTextColor(c[0],c[1],c[2]); doc.setFontSize(8);
+      var stxt=doc.splitTextToSize(sText(r.status),18); doc.text(stxt[0]||"", mR-58, y+6);
+      doc.setTextColor(117,117,117); doc.setFontSize(8);
+      var note=r.note?doc.splitTextToSize(r.note,34):[""]; doc.text(note[0]||"", mR-38, y+6);
+      y+=rowH;
+    });
+    try{ if(window.drawBrandFooter) window.drawBrandFooter(doc,PW,PH); }catch(e){}
+    return true;
+  }
+  var baseDP = window.downloadPending;
+  if(typeof baseDP!=="function") return;
+  window.downloadPending = function(){
+    var JP=window.jspdf; if(!JP||!JP.jsPDF){ return baseDP.apply(this,arguments); }
+    var sig=null; try{ sig=getSignals(); }catch(e){}
+    if(!sig){ return baseDP.apply(this,arguments); }
+    var RealCtor=JP.jsPDF;
+    var Wrap=function(){ var inst=new RealCtor(arguments[0],arguments[1],arguments[2]);
+      var realSave=inst.save;
+      inst.save=function(){ try{ appendSignalsPage(inst); }catch(e){} return realSave.apply(inst,arguments); };
+      return inst;
+    };
+    try{ Wrap.prototype=RealCtor.prototype; Object.keys(RealCtor).forEach(function(k){try{Wrap[k]=RealCtor[k];}catch(e){}}); }catch(e){}
+    JP.jsPDF=Wrap;
+    try{ return baseDP.apply(this,arguments); }
+    finally{ JP.jsPDF=RealCtor; }
+  };
+})();
+</script>
 </body>
 </html>
 
