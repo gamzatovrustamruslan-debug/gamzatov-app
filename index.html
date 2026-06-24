@@ -7546,6 +7546,57 @@ document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }
   tick();
 })();
 </script>
+
+
+<script>
+/* MTFIX5: make manager (uchastnik) save reliably persist specialization to cloud before reload */
+(function(){
+  if(window.__MTFIX5) return; window.__MTFIX5=true;
+  function getSTATE(){ try{ return (new Function('return (typeof STATE!=="undefined"&&STATE)?STATE:null'))(); }catch(e){ return null; } }
+  function toast(msg, ok){
+    try{
+      var d=document.getElementById('mtf5toast');
+      if(!d){ d=document.createElement('div'); d.id='mtf5toast'; d.style.cssText='position:fixed;z-index:99999;left:50%;bottom:26px;transform:translateX(-50%);padding:10px 18px;border-radius:10px;font-weight:700;font-size:14px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:opacity .25s;'; document.body.appendChild(d); }
+      d.textContent=msg;
+      d.style.background= ok===false ? '#c0392b' : (ok===true ? '#1e8e4e' : '#2d6cdf');
+      d.style.opacity='1';
+      clearTimeout(d.__t);
+      if(ok!==null){ d.__t=setTimeout(function(){ d.style.opacity='0'; }, 2200); }
+    }catch(e){}
+  }
+  function wrap(){
+    if(typeof window.saveManager!=='function' || window.saveManager.__mtf5) return;
+    var orig=window.saveManager;
+    window.saveManager=function(id){
+      var ST=getSTATE();
+      var before = ST&&ST.managers ? ST.managers.map(function(m){return m.id;}) : [];
+      var r;
+      try{ r=orig.apply(this, arguments); }catch(e){ toast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f', false); throw e; }
+      (function(){
+        var ST2=getSTATE(); if(!ST2||!ST2.managers) return;
+        var mgr=null;
+        if(id){ mgr=ST2.managers.find(function(m){return m.id===id; }); }
+        if(!mgr){ mgr=ST2.managers.find(function(m){ return before.indexOf(m.id)<0; }); }
+        if(!mgr){ return; }
+        toast('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435\u2026', null);
+        Promise.resolve().then(function(){
+          if(typeof window.syncManagerCloud!=='function') return null;
+          try{ return window.syncManagerCloud(mgr); }catch(e){ return null; }
+        }).then(function(){
+          try{ window.saveLocal && window.saveLocal(); }catch(e){}
+          toast('\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e \u2713', true);
+        }).catch(function(){
+          toast('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c', false);
+        });
+      })();
+      return r;
+    };
+    window.saveManager.__mtf5=true;
+  }
+  wrap();
+  setInterval(wrap, 1500);
+})();
+</script>
 </body>
 </html>
 
