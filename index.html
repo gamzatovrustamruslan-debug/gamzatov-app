@@ -8372,20 +8372,21 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     var uslLines=D.usl.map(function(t){ return doc.splitTextToSize(t, right-left); });
     var lineH=4.0, uslHeight=6;
     uslLines.forEach(function(w){ uslHeight += w.length*lineH + 1.6; });
-    var footerTop=278, sigBlockH=26, gap=4;
+    var footerTop=270, sigBlockH=26, gap=5;
     var discLines=doc.splitTextToSize(D.disclaimer, right-left);
     var discH=discLines.length*3.6+2;
     var blockTotal=uslHeight+gap+discH+gap+sigBlockH;
-    var startY=footerTop-blockTotal;
     var curMaxY=(doc.__mtf17getMaxY?doc.__mtf17getMaxY():0);
-    if(startY < curMaxY+8){ try{doc.addPage();}catch(e){} startY=40; if(doc.__mtf17resetMaxY)doc.__mtf17resetMaxY(); }
+    var startY=curMaxY+10; if(startY<60)startY=60;
+    if(startY+blockTotal>footerTop){ try{doc.addPage();}catch(e){} startY=20; if(doc.__mtf17resetMaxY)doc.__mtf17resetMaxY(); }
     var y=startY;
     doc.setTextColor(13,71,161); F('bold',10); doc.text(D.uslTitle,left,y); y+=6;
     doc.setTextColor(40,40,40); F('normal',8);
     uslLines.forEach(function(w){ w.forEach(function(ln){ doc.text(ln,left,y); y+=lineH; }); y+=1.6; });
-    y+=1; doc.setTextColor(90,90,90); F('normal',7.5);
+    y+=gap; doc.setTextColor(90,90,90); F('normal',7.5);
     discLines.forEach(function(ln){ doc.text(ln,left,y); y+=3.6; });
-    var sigLineY=footerTop-4, fioY=sigLineY-2, labelY=fioY-6, podY=sigLineY+4, dogY=podY+5;
+    y+=gap+2;
+    var labelY=y, fioY=y+6, sigLineY=y+8, podY=y+12, dogY=y+17;
     doc.setTextColor(13,71,161); F('bold',9);
     doc.text(D.zak,left,labelY); doc.text(D.pod,colR,labelY);
     doc.setTextColor(20,20,20); F('normal',9);
@@ -8419,13 +8420,13 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
           }
           if(page===1 && typeof y==='number' && y>=49 && y<=71){ return inst; }
         }
-        if(typeof y==='number'&&y>maxY&&y<288)maxY=y;
+        if(typeof y==='number'&&y>maxY&&y<270)maxY=y;
         }catch(e){}
         return ot.apply(inst,arguments);
       };
       inst.line=function(x1,y1,x2,y2){
         try{ if(ns.__mtf17ctx && page===1 && typeof y1==='number' && y1>=49 && y1<=71){ return inst; }
-          if(typeof y1==='number'&&y1>maxY&&y1<288)maxY=y1;
+          if(typeof y1==='number'&&y1>maxY&&y1<270)maxY=y1;
         }catch(e){}
         return ol.apply(inst,arguments);
       };
