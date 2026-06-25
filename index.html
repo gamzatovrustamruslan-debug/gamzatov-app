@@ -8668,6 +8668,48 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   install();
 })();
 </script>
+
+<script>
+/* MTFIX21: ZM legal block - fix top blue caption bar (grow h7->h8, center caption) + drop intro line, pull 4 points up */
+(function(){
+  if(window.__mtfix21)return; window.__mtfix21=true;
+  var INTRO='\u041f\u043e\u0434\u043f\u0438\u0441\u044b\u0432\u0430\u044f \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0443\u044e \u0437\u0430\u0434\u0430\u0447\u0443, \u041c\u0430\u0441\u0442\u0435\u0440 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0435\u0442, \u0447\u0442\u043e:';
+  var TITLE='\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u0435 \u043c\u0430\u0441\u0442\u0435\u0440\u0430';
+  function isPoint(s){ return /^[1-4]\.\s/.test(s||''); }
+  var SHIFT=5;
+  function install(){
+    var jp=window.jspdf; if(!jp||!jp.jsPDF)return false;
+    if(jp.jsPDF.__mtf21wrapped)return true;
+    var Cur=jp.jsPDF;
+    function W(){
+      var inst=new Cur(...arguments);
+      var curFill='?';
+      try{ var _sfc=inst.setFillColor.bind(inst); inst.setFillColor=function(){ curFill=[].slice.call(arguments).join(','); return _sfc.apply(inst,arguments); }; }catch(e){}
+      try{
+        var _rect=inst.rect.bind(inst);
+        inst.rect=function(x,y,w,h,st){ if(curFill==='13,71,161' && Math.round(w)===186 && Math.round(h)===7){ return _rect(x,y,w,8,st); } return _rect.apply(inst,arguments); };
+      }catch(e){}
+      try{
+        var _text=inst.text.bind(inst);
+        inst.text=function(txt,x,y,opts){
+          var s=(typeof txt==='string')?txt:(Array.isArray(txt)?String(txt):String(txt));
+          var first=Array.isArray(txt)?txt[0]:txt;
+          if(txt===INTRO || first===INTRO || s===INTRO){ return inst; }
+          if(txt===TITLE || first===TITLE){ return _text.call(inst,txt,x,y+0.7,opts); }
+          if(isPoint(first)){ return _text.call(inst,txt,x,y-SHIFT,opts); }
+          return _text.apply(inst,arguments);
+        };
+      }catch(e){}
+      return inst;
+    }
+    for(var k in Cur){ try{ W[k]=Cur[k]; }catch(e){} }
+    W.API=Cur.API; W.version=Cur.version; W.prototype=Cur.prototype; W.__mtf21wrapped=true; W.__mtf20wrapped=Cur.__mtf20wrapped;
+    jp.jsPDF=W;
+    return true;
+  }
+  var tries=0; var iv=setInterval(function(){ tries++; if(install()||tries>60){ clearInterval(iv); } },500); install();
+})();
+</script>
 </body>
 </html>
 
