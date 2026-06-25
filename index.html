@@ -8630,6 +8630,44 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   install(); window.__MTFIX19=true;
 })();
 </script>
+
+<script>
+/* MTFIX20: ZM PDF - embed DV font (fix Cyrillic glyphs in title) + Russian filename like KP */
+(function(){
+  if(window.__mtfix20)return; window.__mtfix20=true;
+  function two(n){ n=''+n; return n.length<2?'0'+n:n; }
+  function ddmmyyyy(){ var d=new Date(); return two(d.getDate())+'.'+two(d.getMonth()+1)+'.'+d.getFullYear(); }
+  function masterName(){ var s=document.getElementById('mtf6Master'); if(!s||s.selectedIndex<1)return ''; var t=s.options[s.selectedIndex].text||''; return (t.split('\u00b7')[0]||t).trim(); }
+  function getDV(){ return window.__mtf6_dv||null; }
+  function install(){
+    var jp=window.jspdf; if(!jp||!jp.jsPDF)return false;
+    if(jp.jsPDF.__mtf20wrapped)return true;
+    var Base=jp.jsPDF;
+    function W(){
+      var inst=new Base(...arguments);
+      try{ var dv=getDV(); if(dv){ inst.addFileToVFS(dv.file,dv.data); inst.addFont(dv.file,'DV','normal'); inst.addFont(dv.file,'DV','bold'); } }catch(e){}
+      try{
+        var _save=inst.save.bind(inst);
+        inst.save=function(name){
+          if(typeof name==='string' && /^ZM-\d+_/.test(name)){
+            var fio=masterName();
+            if(fio){ return _save('\u0417\u0430\u0434\u0430\u0447\u0430 \u043c\u0430\u0441\u0442\u0435\u0440\u0443 '+fio+' \u043e\u0442 '+ddmmyyyy()+'.pdf'); }
+          }
+          return _save(name);
+        };
+      }catch(e){}
+      return inst;
+    }
+    for(var k in Base){ try{ W[k]=Base[k]; }catch(e){} }
+    W.API=Base.API; W.version=Base.version; W.prototype=Base.prototype; W.__mtf20wrapped=true;
+    jp.jsPDF=W;
+    return true;
+  }
+  var tries=0;
+  var iv=setInterval(function(){ tries++; if(install()||tries>40){ clearInterval(iv); } }, 500);
+  install();
+})();
+</script>
 </body>
 </html>
 
