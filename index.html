@@ -4292,7 +4292,7 @@ function downloadPdf(proj, type, data){
       date: kp.date,
       objname: kp.objname,
       address: kp.address,
-      isMaster: data.isMaster,
+      isMaster: data.isMaster, noParties:true,
       leftLabel: 'ЗАКАЗЧИК',
       leftName: data.isMaster ? getBrand().contractor : kp.name,
       rightLabel: data.isMaster ? 'ИСПОЛНИТЕЛЬ' : 'ПОДРЯДЧИК',
@@ -8418,7 +8418,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
           if(page===1 && typeof y==='number' && y>=38 && y<=42 && x>=12 && x<=18 && ts.indexOf(D.kpOld)===0){
             ot(D.kpPrefix+(ns.__mtf17ctx.kpSeq||''), x, y); return inst;
           }
-          if(page===1 && typeof y==='number' && y>=49 && y<=71){ return inst; }
+          if(false){ return inst; }
         }
         if(typeof y==='number'){var _mtf17extra=(Array.isArray(txt)&&txt.length>1)?(txt.length-1)*4.3:0;var _mtf17y=y+_mtf17extra;if(_mtf17y>maxY&&_mtf17y<270)maxY=_mtf17y;}
         }catch(e){}
