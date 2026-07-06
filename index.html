@@ -4123,7 +4123,7 @@ function drawBrandHeader(doc, PW, o){
     if(o.date) doc.text('от '+o.date, M+33, ny);
   }
   y=ny+5;
-  if(o.objname){ doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(117,117,117); doc.text('Объект: '+o.objname+(o.address?(', '+o.address):''), M, y); y+=5; }
+  if(o.objname){ doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(117,117,117); doc.text('Объект: '+o.objname, M, y); y+=5; if(o.address){ var _mtf30addr=doc.splitTextToSize(o.address, RIGHT-M); _mtf30addr.forEach(function(_al){ doc.text(_al, M, y); y+=5; }); } }
   if(o.noParties){ return y+2; }
   // стороны
   const colW=(RIGHT-M)/2;
