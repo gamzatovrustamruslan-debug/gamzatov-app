@@ -7722,7 +7722,7 @@ document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }
 
   function hook(){ if(typeof window.mtNew==='function' && !window.mtNew.__mtf6){ var orig=window.mtNew; window.mtNew=function(){ try{ return window.mtf6Form(); }catch(e){ return orig.apply(this,arguments); } }; window.mtNew.__mtf6=1; } }
   hook(); setInterval(hook,1200);
-  setTimeout(function(){ try{ captureDV(); }catch(e){} }, 4000);
+  // MTFIX28: убран автозапуск captureDV() через setTimeout — он вызывал фоновую генерацию PDF и зависание страницы на 30-45 сек при каждой загрузке. Захват шрифта по-прежнему происходит при реальном экспорте документа пользователем.
 })();
 </script>
 
