@@ -8380,7 +8380,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     var startY=curMaxY+10; if(startY<60)startY=60;
     if(startY+blockTotal>footerTop){ try{doc.addPage();}catch(e){} startY=20; if(doc.__mtf17resetMaxY)doc.__mtf17resetMaxY(); }
     var y=startY;
-    doc.setTextColor(13,71,161); F('bold',10); doc.text(D.uslTitle,left,y); y+=6;
+    doc.setTextColor(13,71,161); F('bold',10); doc.text(D.uslTitle,left,y); y+=11;
     doc.setTextColor(40,40,40); F('normal',8);
     uslLines.forEach(function(w){ w.forEach(function(ln){ doc.text(ln,left,y); y+=lineH; }); y+=1.6; });
     y+=gap; doc.setTextColor(90,90,90); F('normal',7.5);
