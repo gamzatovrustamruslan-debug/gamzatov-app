@@ -4235,7 +4235,7 @@ function buildPdfData(proj, type){
   const onlyDone = (type==='avr' || type==='mact');
   const rows = [];
   let totalM=0, totalC=0;
-  PRICEBOOK.forEach((sec,si)=>{
+  pbOf(proj).forEach((sec,si)=>{
     const secTitle = sec.t.replace(/^[☆\s]*\d*\.\s*/,'');
     const secRows = [];
     sec.g.forEach((grp,gi)=>{
@@ -4393,7 +4393,7 @@ let _actType = 'avr';
 function buildActData(proj, act, isMaster){
   const rows = [];
   let totalM=0, totalC=0;
-  PRICEBOOK.forEach((sec,si)=>{
+  pbOf(proj).forEach((sec,si)=>{
     const secTitle = sec.t.replace(/^[☆\s]*\d*\.\s*/,'');
     const secRows = [];
     sec.g.forEach((grp,gi)=>{
@@ -8420,7 +8420,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
           }
           if(page===1 && typeof y==='number' && y>=49 && y<=71){ return inst; }
         }
-        if(typeof y==='number'&&y>maxY&&y<270)maxY=y;
+        if(typeof y==='number'){var _mtf17extra=(Array.isArray(txt)&&txt.length>1)?(txt.length-1)*4.3:0;var _mtf17y=y+_mtf17extra;if(_mtf17y>maxY&&_mtf17y<270)maxY=_mtf17y;}
         }catch(e){}
         return ot.apply(inst,arguments);
       };
