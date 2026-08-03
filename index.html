@@ -754,6 +754,7 @@ body:not(.edit-mode) .add-row { display:none; }
     <div class="doc-group-label">1️⃣ Смета и предложение</div>
     <div class="doc-row">
       <button class="doc-btn client" onclick="genDoc('kp')">📋 КП заказчику</button>
+      <button class="doc-btn client" onclick="genDoc('dsmeta')">✍️ Смета к договору</button>
     </div>
     <div class="doc-group-label">2️⃣ Работы — задания и сроки</div>
     <div class="doc-row">
@@ -4180,8 +4181,9 @@ function genDoc(type){
 }
 
 function showDocPreview(proj, type, data){
-  const titles = {kp:'Коммерческое предложение', avr:'Акт выполненных работ', task:'Задание мастеру', mact:'Акт мастеру', predv:'Предварительный акт', predvm:'Предварительный акт (мастеру)'};
-  const prefixes = {kp:'КП', avr:'АВР', task:'ЗДН', mact:'АКТ-М', predv:'ПРЕДВ', predvm:'ПРЕДВ-М'};
+  // MTFIX41: dsmeta — смета к договору (фиксирует объёмы и цены перед началом работ)
+  const titles = {kp:'Коммерческое предложение', dsmeta:'Смета к договору', avr:'Акт выполненных работ', task:'Задание мастеру', mact:'Акт мастеру', predv:'Предварительный акт', predvm:'Предварительный акт (мастеру)'};
+  const prefixes = {kp:'КП', dsmeta:'СМ', avr:'АВР', task:'ЗДН', mact:'АКТ-М', predv:'ПРЕДВ', predvm:'ПРЕДВ-М'};
   const kp = data.kp;
   function mf(n){ return n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₽'; }
   function qf(n){ return n.toLocaleString('ru-RU',{maximumFractionDigits:2}); }
@@ -4287,8 +4289,8 @@ function downloadPdf(proj, type, data){
     doc.addFileToVFS('DVB.ttf', FONT_BOLD_B64); doc.addFont('DVB.ttf','DV','bold');
     doc.setFont('DV','normal');
 
-    const titles = {kp:'Коммерческое предложение', avr:'Акт выполненных работ', task:'Задание мастеру', mact:'Акт мастеру', predv:'Предварительный акт', predvm:'Предварительный акт (мастеру)'};
-    const prefixes = {kp:'КП', avr:'АВР', task:'ЗДН', mact:'АКТ-М', predv:'ПРЕДВ', predvm:'ПРЕДВ-М'};
+    const titles = {kp:'Коммерческое предложение', dsmeta:'Смета к договору', avr:'Акт выполненных работ', task:'Задание мастеру', mact:'Акт мастеру', predv:'Предварительный акт', predvm:'Предварительный акт (мастеру)'};
+    const prefixes = {kp:'КП', dsmeta:'СМ', avr:'АВР', task:'ЗДН', mact:'АКТ-М', predv:'ПРЕДВ', predvm:'ПРЕДВ-М'};
     const kp = data.kp;
     const docNum = prefixes[type] + (kp.number!=='—'?kp.number:'');
 
@@ -4394,8 +4396,8 @@ function downloadPdf(proj, type, data){
     // MTFIX37: prefixes[type] кириллический ("КП", "АВР", "ЗДН", "АКТ-М"), а фильтр
     // [^A-Za-z] оставлял только латиницу и стирал его в пустую строку. Все документы
     // сохранялись как Smeta_<номер>_<дата>.pdf и затирали друг друга в загрузках.
-    const latinPrefix = {kp:'KP', avr:'AVR', task:'ZADANIE', mact:'AKT-MASTERU',
-                         predv:'PREDV', predvm:'PREDV-MASTERU'}[type] || 'DOC';
+    const latinPrefix = {kp:'KP', dsmeta:'SMETA-DOGOVOR', avr:'AVR', task:'ZADANIE',
+                         mact:'AKT-MASTERU', predv:'PREDV', predvm:'PREDV-MASTERU'}[type] || 'DOC';
     doc.save(latinPrefix+'_'+safeNum+'_'+dt+'.pdf');
     hideModal();
   } catch(err){
@@ -9234,5 +9236,74 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   }
 
   setInterval(function(){ try{ attach(); }catch(e){} }, 700);
+})();
+</script>
+
+<script>
+/* MTFIX42: имя файла по типу документа (и запрет чужих документов в «Архив КП»).
+
+   MTFIX15 оборачивает downloadPending: кладёт в window.__mtf15Pending имя
+   вида «КП для <клиент> <дата>.pdf», а затем в doc.save подменяет им ЛЮБОЕ
+   имя и пишет документ в архив КП. В результате акт, задание и смета к
+   договору сохранялись под именем КП, затирали друг друга в загрузках и
+   засоряли архив.
+
+   Правку MTFIX37 (латинские префиксы в downloadPdf) это перекрывало: она
+   работает лишь при прямом вызове downloadPdf, а из интерфейса всё идёт
+   через downloadPending.
+
+   Перехватываем саму запись __mtf15Pending и подставляем имя по типу
+   текущего документа. Для КП поведение прежнее. */
+(function(){
+  if(window.__MTFIX42) return; window.__MTFIX42 = true;
+
+  var NAMES = {
+    kp:      'КП для',
+    dsmeta:  'Смета к договору для',
+    avr:     'Акт выполненных работ для',
+    mact:    'Акт мастеру по объекту',
+    task:    'Задание мастеру по объекту',
+    predv:   'Предварительный акт для',
+    predvm:  'Предварительный акт мастеру по объекту'
+  };
+  /* документы мастера подписываем объектом, а не заказчиком */
+  var BY_OBJECT = { mact:1, task:1, predvm:1 };
+
+  function curType(){
+    try{
+      var pd = (0,eval)('_pendingDoc');
+      if(pd && pd.type) return pd.type;
+    }catch(e){}
+    return 'kp';
+  }
+  function clean(s){
+    return String(s||'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,60);
+  }
+  function stamp(){
+    var d=new Date(), z=function(v){return ('0'+v).slice(-2);};
+    return z(d.getDate())+'.'+z(d.getMonth()+1)+'.'+d.getFullYear();
+  }
+
+  var store = window.__mtf15Pending || null;
+  try{
+    Object.defineProperty(window, '__mtf15Pending', {
+      configurable: true,
+      get: function(){ return store; },
+      set: function(v){
+        try{
+          if(v && v.fname){
+            var t = curType();
+            if(t !== 'kp'){
+              var label = NAMES[t] || 'Документ по объекту';
+              var who = BY_OBJECT[t] ? clean(v.objname) : clean(v.client);
+              v.fname = (who ? (label + ' ' + who) : label) + ' ' + stamp() + '.pdf';
+              v.archive = false;   // в «Архив КП» попадают только КП
+            }
+          }
+        }catch(e){}
+        store = v;
+      }
+    });
+  }catch(e){}
 })();
 </script>
