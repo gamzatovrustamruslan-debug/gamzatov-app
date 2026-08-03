@@ -9307,3 +9307,93 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   }catch(e){}
 })();
 </script>
+
+<script>
+/* MTFIX43: акты теряли позиции, которых нет в справочнике.
+
+   buildActData перебирала pbOf(proj) — то есть справочник PRICEBOOK — и
+   искала в нём ключ каждой строки акта. Работы, добавленные вручную
+   (их si/gi/wi выходят за границы справочника) и работы из новых
+   разделов в переборе не встречались и молча выпадали из документа.
+
+   В форме создания акта пользователь видел все позиции и полную сумму,
+   а в готовом акте часть исчезала — расхождение на десятки тысяч.
+
+   MTFIX14 в своё время исправил ровно это для КП и сметы, переведя
+   buildPdfData на proj.works, но акты через него не проходят.
+
+   Собираем строки акта из состава сметы по ключам act.lines. */
+(function(){
+  if(window.__MTFIX43) return; window.__MTFIX43 = true;
+
+  function ev(n){ try{ return (0,eval)(n); }catch(e){ return undefined; } }
+
+  function secTitle(proj, si){
+    try{
+      var pb = null;
+      var pbo = ev('pbOf');
+      if(typeof pbo === 'function'){ pb = pbo(proj); }
+      if(!pb) pb = ev('PRICEBOOK');
+      if(pb && pb[si] && pb[si].t) return String(pb[si].t).replace(/^[☆\s]*\d*\.\s*/,'');
+    }catch(e){}
+    return 'Раздел ' + si;
+  }
+
+  var orig = window.buildActData;
+  if(typeof orig !== 'function'){
+    try{ orig = ev('buildActData'); }catch(e){}
+  }
+  if(typeof orig !== 'function') return;
+
+  window.buildActData = function(proj, act, isMaster){
+    var base;
+    try{ base = orig.apply(this, arguments); }
+    catch(e){ base = { rows:[], total:0, totalAfter:0, discount:0, isMaster:!!isMaster, kp:{} }; }
+
+    try{
+      if(!proj || !proj.works || !proj.works.length) return base;
+
+      var qty = {};
+      (act && act.lines ? act.lines : []).forEach(function(l){
+        if(l && l.key && (Number(l.qty)||0) > 0) qty[l.key] = Number(l.qty);
+      });
+      if(!Object.keys(qty).length) return base;
+
+      var picked = proj.works.filter(function(w){ return qty[w.key] > 0; });
+      if(!picked.length) return base;
+
+      // не хуже прежнего: если старая сборка нашла столько же, ничего не трогаем
+      var had = (base.rows || []).filter(function(r){ return r.type === 'work'; }).length;
+      if(had >= picked.length) return base;
+
+      var order = [], groups = {};
+      picked.forEach(function(w){
+        var si = w.si;
+        if(!(si in groups)){ groups[si] = []; order.push(si); }
+        groups[si].push(w);
+      });
+
+      var rows = [], totalM = 0, totalC = 0;
+      order.forEach(function(si){
+        rows.push({ type:'section', title: secTitle(proj, si) });
+        groups[si].forEach(function(w){
+          var q = qty[w.key];
+          var pM = Number(w.priceM) || 0, pC = Number(w.priceC) || 0;
+          totalM += pM * q; totalC += pC * q;
+          var price = isMaster ? pM : pC;
+          rows.push({ type:'work', name:w.name, unit:w.unit, qty:q, price:price, sum:price * q });
+        });
+      });
+
+      var total = isMaster ? totalM : totalC;
+      var disc = isMaster ? 0 : (parseFloat(proj.discount) || 0);
+      base.rows = rows;
+      base.total = total;
+      base.discount = disc;
+      base.totalAfter = total * (1 - disc / 100);
+    }catch(e){}
+
+    return base;
+  };
+})();
+</script>
