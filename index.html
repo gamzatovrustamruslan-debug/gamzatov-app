@@ -2091,12 +2091,21 @@ async function boot(){
   initSupabase();
   if(!supa){ showAppUI(); return; }
   try{
-    const { data } = await supa.auth.getSession();
-    if(data && data.session && data.session.user){
-      currentUser=data.session.user; hideAuth();
+    // Облако не должно задерживать запуск: если Supabase не ответил за 4 сек
+    // (проект удалён, нет сети), работаем на локальных данных.
+    const session = await Promise.race([
+      supa.auth.getSession().then(r => (r && r.data) ? r.data.session : null),
+      new Promise(res => setTimeout(() => res(null), 4000))
+    ]);
+    if(session && session.user){
+      currentUser=session.user; hideAuth();
       await loadFromCloud(); showAppUI();
-    } else { showAuth(); }
-  }catch(e){ showAuth(); }
+    } else {
+      // Нет сессии или облако недоступно — открываем приложение локально.
+      // localStorage не трогаем, сметы остаются на месте.
+      hideAuth(); showAppUI();
+    }
+  }catch(e){ hideAuth(); showAppUI(); }
 }
 
 // Ручной статус работы: только 'smeta' (в смете) ↔ 'work' (в работе).
