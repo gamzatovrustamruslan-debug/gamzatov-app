@@ -9137,3 +9137,102 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   setInterval(run, 1500);
 })();
 </script>
+
+<script>
+/* MTFIX40: задания узкопрофильным мастерам — разделы подбираются под специализацию */
+(function(){
+  if(window.__MTFIX40) return; window.__MTFIX40 = true;
+
+  /* Специализация -> ключевые слова в названии раздела сметы.
+     Ключ ищется как подстрока в specialization мастера, поэтому
+     "Электрик", "электрик-слаботочник" и "Электрика" попадут в одну ветку. */
+  var SPEC = [
+    { key:'электр',    words:['электр','умный дом','освещен','слаботоч'] },
+    { key:'сантехн',   words:['сантехник','водоснабж','отоплен','канализ'] },
+    { key:'плиточ',    words:['плитк','керамогранит','фартук'] },
+    { key:'маляр',     words:['штукатур','шпакл','покрас','малярн','чистовая отделка','обои'] },
+    { key:'демонтаж',  words:['демонтаж','мусор','мобилизац'] },
+    { key:'гипсокарт', words:['гкл','гипсокартон','перегородк','откос'] },
+    { key:'потолоч',   words:['потолок'] },
+    { key:'полов',     words:['стяжка','напольное','плинтус','пол'] },
+    { key:'окон',      words:['оконн','подоконник'] },
+    { key:'двер',      words:['двер'] },
+    { key:'вентиляц',  words:['вентиляц','кондицион'] },
+    { key:'мебел',     words:['мебелир','декорир'] }
+  ];
+  /* Эти роли видят всю смету — фильтр к ним не применяется */
+  var BROAD = ['универсал','начальник','руководител','прораб','технадзор'];
+
+  function wordsFor(spec){
+    var s = String(spec || '').toLowerCase();
+    if(!s) return null;
+    for(var i=0;i<BROAD.length;i++){ if(s.indexOf(BROAD[i])>=0) return null; }
+    for(var j=0;j<SPEC.length;j++){ if(s.indexOf(SPEC[j].key)>=0) return SPEC[j].words; }
+    return null;
+  }
+  function matches(title, words){
+    var t = String(title || '').toLowerCase();
+    for(var i=0;i<words.length;i++){ if(t.indexOf(words[i])>=0) return true; }
+    return false;
+  }
+  function specOf(id){
+    try{
+      var st = (0,eval)('STATE') || window.STATE || {};
+      var m = (st.managers||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+      return m ? (m.specialization||'') : '';
+    }catch(e){ return ''; }
+  }
+
+  function attach(){
+    var ms = document.getElementById('mtf6Master');
+    var stg = document.getElementById('mtf6Stage');
+    if(!ms || !stg || ms.__mtf40) return;
+    ms.__mtf40 = true;
+
+    var hint = document.getElementById('mtf40Hint');
+    if(!hint){
+      hint = document.createElement('div');
+      hint.id = 'mtf40Hint';
+      hint.style.cssText = 'font-size:12.5px;color:#1565C0;background:#E3F2FD;border-radius:8px;'+
+                           'padding:8px 10px;line-height:1.35;display:none;';
+      if(stg.parentNode) stg.parentNode.insertBefore(hint, stg);
+    }
+
+    ms.addEventListener('change', function(){
+      var spec = specOf(ms.value);
+      var words = wordsFor(spec);
+
+      if(!words){
+        // широкий профиль: ограничений нет, но чужой выбор от прошлого мастера снимаем
+        for(var k=0;k<stg.options.length;k++){ stg.options[k].selected = false; }
+        try{ stg.dispatchEvent(new Event('change')); }catch(e){}
+        hint.style.display = spec ? 'block' : 'none';
+        if(spec) hint.innerHTML = '👤 <b>' + spec + '</b> — работает по всей смете. Выберите разделы вручную.';
+        return;
+      }
+
+      var hits = [];
+      for(var i=0;i<stg.options.length;i++){
+        var o = stg.options[i];
+        if(!o.value) continue;
+        if(matches(o.textContent, words)){ o.selected = true; hits.push(o.textContent.trim()); }
+        else { o.selected = false; }
+      }
+
+      if(hits.length){
+        hint.style.display = 'block';
+        hint.innerHTML = '🎯 <b>' + spec + '</b> — подобрано разделов: ' + hits.length +
+          '<br><span style="color:#37474F">' + hits.slice(0,4).join(' · ') +
+          (hits.length>4 ? ' и ещё ' + (hits.length-4) : '') + '</span>' +
+          '<br><span style="color:#607D8B">Выбор можно изменить вручную.</span>';
+        try{ stg.dispatchEvent(new Event('change')); }catch(e){}
+      } else {
+        hint.style.display = 'block';
+        hint.innerHTML = '🎯 <b>' + spec + '</b> — в смете нет профильных разделов. Выберите вручную.';
+      }
+    });
+  }
+
+  setInterval(function(){ try{ attach(); }catch(e){} }, 700);
+})();
+</script>
