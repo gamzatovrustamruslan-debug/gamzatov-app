@@ -4388,7 +4388,12 @@ function downloadPdf(proj, type, data){
     }
     const safeNum = (kp.number||'noname').replace(/[^a-zA-Z0-9_-]/g,'');
     const dt = (kp.date).replace(/\./g,'-');
-    doc.save('Smeta_'+prefixes[type].replace(/[^A-Za-z]/g,'')+safeNum+'_'+dt+'.pdf');
+    // MTFIX37: prefixes[type] кириллический ("КП", "АВР", "ЗДН", "АКТ-М"), а фильтр
+    // [^A-Za-z] оставлял только латиницу и стирал его в пустую строку. Все документы
+    // сохранялись как Smeta_<номер>_<дата>.pdf и затирали друг друга в загрузках.
+    const latinPrefix = {kp:'KP', avr:'AVR', task:'ZADANIE', mact:'AKT-MASTERU',
+                         predv:'PREDV', predvm:'PREDV-MASTERU'}[type] || 'DOC';
+    doc.save(latinPrefix+'_'+safeNum+'_'+dt+'.pdf');
     hideModal();
   } catch(err){
     customAlert('Ошибка генерации PDF: ' + (err.message||err));
