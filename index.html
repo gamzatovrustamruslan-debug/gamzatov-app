@@ -4136,7 +4136,26 @@ function drawBrandHeader(doc, PW, o){
     if(o.date) doc.text('от '+o.date, M+33, ny);
   }
   y=ny+5;
-  if(o.objname){ doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(117,117,117); doc.text('Объект: '+o.objname, M, y); y+=5; if(o.address){ var _mtf30addr=doc.splitTextToSize(o.address, RIGHT-M); _mtf30addr.forEach(function(_al){ doc.text(_al, M, y); y+=5; }); } }
+  if(o.objname){
+    doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(117,117,117);
+    // MTFIX44: и название объекта, и адрес могут не поместиться в строку либо
+    // содержать перенос. Раньше каждый рисовался одной командой doc.text, а y
+    // рос на фиксированные 5 мм — jsPDF переносил текст сам, и следующий блок
+    // (синяя шапка таблицы) наезжал на вторую строку.
+    // Режем текст сами: и по явным переносам, и по ширине листа.
+    // Ширина ровно как у перехватчика шапки (см. ниже по файлу: он режет текст
+    // на высоте 40..60 по (105 - x) - 3, чтобы не залезать под блок с суммой).
+    // Режем сами и той же меркой — иначе он перенесёт строку за нас, а y
+    // останется от одной строки, и синяя полоса таблицы ляжет поверх адреса.
+    var _aw = (105 - M) - 3;
+    var _wrap = function(s){
+      return String(s == null ? '' : s).split(/\r?\n/).reduce(function(acc, part){
+        return acc.concat(doc.splitTextToSize(part, _aw));
+      }, []);
+    };
+    _wrap('Объект: ' + o.objname).forEach(function(_ol){ doc.text(_ol, M, y); y += 5; });
+    if(o.address){ _wrap(o.address).forEach(function(_al){ doc.text(_al, M, y); y += 5; }); }
+  }
   if(o.noParties){ return y+2; }
   // стороны
   const colW=(RIGHT-M)/2;
@@ -8416,11 +8435,15 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     var left=12, right=198, colR=110;
     function F(s,sz){ try{doc.setFont('DV',s||'normal');}catch(e){} try{doc.setFontSize(sz);}catch(e){} }
     F('normal',8);
-    var uslLines=D.usl.map(function(t){ return doc.splitTextToSize(t, right-left); });
+    // MTFIX44: режем с запасом. splitTextToSize иногда считает, что строка
+    // влезает, а doc.text её всё же переносит — тогда пункты наезжали друг
+    // на друга, потому что y рос на одну строку вместо двух.
+    var WRAP_W = (right - left) - 6;
+    var uslLines=D.usl.map(function(t){ return doc.splitTextToSize(t, WRAP_W); });
     var lineH=4.0, uslHeight=6;
     uslLines.forEach(function(w){ uslHeight += w.length*lineH + 1.6; });
     var footerTop=270, sigBlockH=26, gap=5;
-    var discLines=doc.splitTextToSize(D.disclaimer, right-left);
+    var discLines=doc.splitTextToSize(D.disclaimer, WRAP_W);
     var discH=discLines.length*3.6+2;
     var blockTotal=uslHeight+gap+discH+gap+sigBlockH;
     var curMaxY=(doc.__mtf17getMaxY?doc.__mtf17getMaxY():0);
@@ -8467,7 +8490,16 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
           }
           if(false){ return inst; }
         }
-        if(typeof y==='number'){var _mtf17extra=(Array.isArray(txt)&&txt.length>1)?(txt.length-1)*4.3:0;var _mtf17y=y+_mtf17extra;if(_mtf17y>maxY&&_mtf17y<270)maxY=_mtf17y;}
+        if(typeof y==='number'){
+          // MTFIX44: высота считалась многострочной только для массива. Строка
+          // с переносами занимала несколько строк на листе, а в maxY попадала
+          // как одна — следующий блок ложился поверх неё.
+          var _mtf17n = Array.isArray(txt) ? txt.length
+                      : (typeof txt === 'string' ? txt.split(/\r?\n/).length : 1);
+          var _mtf17extra=(_mtf17n>1)?(_mtf17n-1)*4.3:0;
+          var _mtf17y=y+_mtf17extra;
+          if(_mtf17y>maxY&&_mtf17y<270)maxY=_mtf17y;
+        }
         }catch(e){}
         return ot.apply(inst,arguments);
       };
@@ -8478,7 +8510,10 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
         return ol.apply(inst,arguments);
       };
       inst.save=function(fn){
-        try{ if(ns.__mtf17ctx) drawBottom(inst, ns.__mtf17ctx); }catch(e){}
+        // MTFIX44: save перехвачен несколькими патчами и может вызваться повторно.
+        // Без этого флага блок «Условия» печатался дважды — со сдвигом, и пункты
+        // накладывались друг на друга.
+        try{ if(ns.__mtf17ctx && !inst.__mtf17BottomDrawn){ inst.__mtf17BottomDrawn=true; drawBottom(inst, ns.__mtf17ctx); } }catch(e){}
         return osave.apply(inst,arguments);
       };
       return inst;
@@ -8632,7 +8667,10 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   function translit(s){ var map={'\u0430':'a','\u0431':'b','\u0432':'v','\u0433':'g','\u0434':'d','\u0435':'e','\u0451':'e','\u0436':'zh','\u0437':'z','\u0438':'i','\u0439':'y','\u043a':'k','\u043b':'l','\u043c':'m','\u043d':'n','\u043e':'o','\u043f':'p','\u0440':'r','\u0441':'s','\u0442':'t','\u0443':'u','\u0444':'f','\u0445':'h','\u0446':'ts','\u0447':'ch','\u0448':'sh','\u0449':'sch','\u044a':'','\u044b':'y','\u044c':'','\u044d':'e','\u044e':'yu','\u044f':'ya'}; return (''+(s||'')).split('').map(function(ch){ var low=ch.toLowerCase(); var t=map[low]; if(t===undefined){return /[a-zA-Z0-9]/.test(ch)?ch:'_';} if(ch!==low){return t.charAt(0).toUpperCase()+t.slice(1);} return t; }).join('').replace(/_+/g,'_').replace(/^_|_$/g,''); }
   function zmFilename(zmNum,fio,date){ var num=(''+zmNum).replace('\u0417\u041c','ZM').replace(/[^A-Za-z0-9-]/g,''); var d=(''+date).replace(/\./g,'_'); return num+'_'+translit(fio)+'_'+d+'.pdf'; }
   function genZM(zm){
-    var S=getState(); var p=S?S.projects.filter(function(x){return x.id===S.activeId;})[0]:null; if(!p) return null;
+    // MTFIX44: включаем подъём пунктов 1..4 (MTFIX21) только на время сборки
+    // этого документа — в остальных бланках он ломал блок «Условия».
+    try{ window.__mtf21ZM = true; }catch(e){}
+    var S=getState(); var p=S?S.projects.filter(function(x){return x.id===S.activeId;})[0]:null; if(!p){ try{ window.__mtf21ZM=false; }catch(e){} return null; }
     var st=gv('mtf6Stage'), ms=gv('mtf6Master'), wsEl=gv('mtf6Works');
     var fio=''; try{ if(ms){ var mg=(S.managers||[]).filter(function(m){return m.id===ms.value;})[0]; fio=mg?mg.full_name:(ms.selectedOptions.length?ms.selectedOptions[0].textContent:''); } }catch(e){}
     var selStages = st? Array.prototype.filter.call(st.selectedOptions,function(o){return o.value;}).map(function(o){return {v:o.value,label:o.textContent};}) : [];
@@ -8671,6 +8709,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(GRAY[0],GRAY[1],GRAY[2]); doc.text('\u041c\u0430\u0441\u0442\u0435\u0440 / \u041f\u043e\u0434\u043f\u0438\u0441\u044c / \u0414\u0430\u0442\u0430',Lm,sy+4); doc.text('\u041f\u0440\u043e\u0440\u0430\u0431 / \u041f\u043e\u0434\u043f\u0438\u0441\u044c',110,sy+4);
     doc.setFont('DV','bold'); doc.setFontSize(10); doc.setTextColor(DARK[0],DARK[1],DARK[2]); doc.text((fio||''),Lm,sy-2); doc.text('\u0413\u0430\u043c\u0437\u0430\u0442\u043e\u0432 \u0420.\u0420.',110,sy-2);
     try{(0,eval)('drawBrandFooter')(doc,PW,PH);}catch(e){}
+    try{ window.__mtf21ZM = false; }catch(e){}
     return {doc:doc,fio:fio,date:date,total:total,groups:groups.length};
   }
   var sessionNum=null;
@@ -8755,7 +8794,11 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
           var first=Array.isArray(txt)?txt[0]:txt;
           if(txt===INTRO || first===INTRO || s===INTRO){ return inst; }
           if(txt===TITLE || first===TITLE){ return _text.call(inst,txt,x,y+0.7,opts); }
-          if(isPoint(first)){ return _text.call(inst,txt,x,y-SHIFT,opts); }
+          // MTFIX44: сдвиг задумывался только для правового блока «Задачи мастеру»,
+          // но применялся ко всем документам — в «Условиях» пункты 1..4 уезжали
+          // на 5 мм вверх и наезжали на предыдущую строку (пункт 5 оставался на
+          // месте, потому что не подходит под шаблон). Двигаем только внутри ZM.
+          if(window.__mtf21ZM && isPoint(first)){ return _text.call(inst,txt,x,y-SHIFT,opts); }
           return _text.apply(inst,arguments);
         };
       }catch(e){}
