@@ -1501,8 +1501,18 @@ let STATE = { projects: [], activeId: null, brand: null, managers: [] };
 let editMode = false;
 let filterMode = false;
 
-const BRAND_DEFAULT = { name:'ГАМЗАТОВ СТРОЙ', slogan:'Дизайнерский ремонт под ключ', phone:'', email:'', site:'gamzatov-stroy.netlify.app', contractor:'ИП Гамзатов Р.Р.' };
-function getBrand(){ return Object.assign({}, BRAND_DEFAULT, STATE.brand||{}); }
+// MTFIX45: адрес приложения больше не печатается в бланках. Поле «Сайт»
+// в настройках бланка осталось — если понадобится, впишете туда свой домен.
+const BRAND_DEFAULT = { name:'ГАМЗАТОВ СТРОЙ', slogan:'Дизайнерский ремонт под ключ', phone:'', email:'', site:'', contractor:'ИП Гамзатов Р.Р.' };
+// MTFIX45: у кого адрес уже сохранён в настройках — вычищаем его один раз,
+// иначе сохранённое значение перекрывало бы пустой умолчательный сайт.
+// Свой домен, вписанный вручную, не трогаем.
+const LEGACY_SITE = 'gamzatov-stroy.netlify.app';
+function getBrand(){
+  const b = Object.assign({}, BRAND_DEFAULT, STATE.brand||{});
+  if (b.site === LEGACY_SITE) b.site = '';
+  return b;
+}
 function saveBrand(b){ STATE.brand = Object.assign({}, getBrand(), b); saveState(); }
 
 const CONSENT_DEFAULT = {
