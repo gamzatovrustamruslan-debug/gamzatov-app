@@ -8068,7 +8068,21 @@ document.addEventListener('click', function(){ setTimeout(decorateTasks, 250); }
 if(window.__MTFIX10)return; window.__MTFIX10=1;
 function S(){try{return (0,eval)('STATE');}catch(e){return window.STATE||{};}}
 function JPctor(){return (window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;}
-function dvFont(doc){try{var DV=window.__mtf9DV;if(DV){doc.addFileToVFS('DV.ttf',DV);doc.addFont('DV.ttf','DV','normal');doc.setFont('DV');return true;}}catch(e){}return false;}
+function dvFont(doc){try{
+  // MTFIX35: __mtf9DV заполняется только ensureFont(), а его убрали из автозапуска
+  // (MTFIX29). Если он не отрабатывал, шрифт молча не ставился и jsPDF печатал
+  // кириллицу через Helvetica — отсюда иероглифы в PDF. Дёргаем ensureFont, а как
+  // запасной источник берём FONT_REG_B64/FONT_BOLD_B64, вшитые в начало файла.
+  if(typeof ensureFont==='function'){try{ensureFont();}catch(e){}}
+  var DV=window.__mtf9DV; var DVB=window.__mtf9DVB;
+  if(!DV){try{if(typeof FONT_REG_B64!=='undefined')DV=FONT_REG_B64;}catch(e){}}
+  if(!DVB){try{if(typeof FONT_BOLD_B64!=='undefined')DVB=FONT_BOLD_B64;}catch(e){}}
+  if(DV){
+    doc.addFileToVFS('DV.ttf',DV);doc.addFont('DV.ttf','DV','normal');
+    if(DVB){doc.addFileToVFS('DVB.ttf',DVB);doc.addFont('DVB.ttf','DV','bold');}
+    doc.setFont('DV');return true;
+  }
+}catch(e){}return false;}
 function curProj(){try{if(typeof window.activeProject==='function'){var p=window.activeProject();if(p)return p;}}catch(e){}var st=S();return (st.projects||[]).filter(function(p){return p.id===st.activeId;})[0]||(st.projects||[])[0];}
 function mgrOf(p){var st=S();return (st.managers||[]).filter(function(m){return m.id===p.managerId;})[0]||null;}
 function contractorName(){var st=S();return (st.brand&&(st.brand.contractor||st.brand.name))||'\u041F\u043E\u0434\u0440\u044F\u0434\u0447\u0438\u043A';}
@@ -8136,7 +8150,21 @@ window.genTasksPdf=function(){
 if(window.__MTFIX11)return; window.__MTFIX11=1;
 function S(){try{return (0,eval)('STATE');}catch(e){return window.STATE||{};}}
 function JPctor(){return (window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;}
-function dvFont(doc){try{var DV=window.__mtf9DV;if(DV){doc.addFileToVFS('DV.ttf',DV);doc.addFont('DV.ttf','DV','normal');doc.setFont('DV');return true;}}catch(e){}return false;}
+function dvFont(doc){try{
+  // MTFIX35: __mtf9DV заполняется только ensureFont(), а его убрали из автозапуска
+  // (MTFIX29). Если он не отрабатывал, шрифт молча не ставился и jsPDF печатал
+  // кириллицу через Helvetica — отсюда иероглифы в PDF. Дёргаем ensureFont, а как
+  // запасной источник берём FONT_REG_B64/FONT_BOLD_B64, вшитые в начало файла.
+  if(typeof ensureFont==='function'){try{ensureFont();}catch(e){}}
+  var DV=window.__mtf9DV; var DVB=window.__mtf9DVB;
+  if(!DV){try{if(typeof FONT_REG_B64!=='undefined')DV=FONT_REG_B64;}catch(e){}}
+  if(!DVB){try{if(typeof FONT_BOLD_B64!=='undefined')DVB=FONT_BOLD_B64;}catch(e){}}
+  if(DV){
+    doc.addFileToVFS('DV.ttf',DV);doc.addFont('DV.ttf','DV','normal');
+    if(DVB){doc.addFileToVFS('DVB.ttf',DVB);doc.addFont('DVB.ttf','DV','bold');}
+    doc.setFont('DV');return true;
+  }
+}catch(e){}return false;}
 function curProj(){try{if(typeof window.activeProject==='function'){var p=window.activeProject();if(p)return p;}}catch(e){}var st=S();return (st.projects||[]).filter(function(p){return p.id===st.activeId;})[0]||(st.projects||[])[0];}
 function mgrOf(p){var st=S();return (st.managers||[]).filter(function(m){return m.id===p.managerId;})[0]||null;}
 function contractorName(){var st=S();return (st.brand&&(st.brand.contractor||st.brand.name))||'\u041F\u043E\u0434\u0440\u044F\u0434\u0447\u0438\u043A';}
