@@ -8928,3 +8928,209 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   <!-- MTFIX30b redeploy trigger -->
 <!-- MTFIX31b redeploy trigger -->
 <!-- MTFIX32b redeploy trigger -->
+
+<script>
+/* MTFIX38: финансовый отчёт для бухгалтера */
+(function(){
+  if(window.__MTFIX38) return; window.__MTFIX38 = true;
+
+  function ev(n){ try{ return (0,eval)(n); }catch(e){ return undefined; } }
+  function S(){ return ev('STATE') || window.STATE || {}; }
+  function curProj(){
+    var f = ev('activeProject'); if(typeof f==='function'){ var p=f(); if(p) return p; }
+    var st=S(); return (st.projects||[]).filter(function(p){return p.id===st.activeId;})[0]||null;
+  }
+  function rub(n){ return Math.round(n||0).toLocaleString('ru-RU') + ' ₽'; }
+  function pct(n){ return (Math.round((n||0)*10)/10).toLocaleString('ru-RU') + ' %'; }
+  function today(){ var d=new Date(), z=function(v){return ('0'+v).slice(-2);};
+    return z(d.getDate())+'.'+z(d.getMonth()+1)+'.'+d.getFullYear(); }
+
+  function regFont(doc){
+    try{
+      if(typeof ensureFont==='function'){ try{ ensureFont(); }catch(e){} }
+      var dv=window.__mtf9DV, dvb=window.__mtf9DVB;
+      if(!dv){ try{ if(typeof FONT_REG_B64!=='undefined') dv=FONT_REG_B64; }catch(e){} }
+      if(!dvb){ try{ if(typeof FONT_BOLD_B64!=='undefined') dvb=FONT_BOLD_B64; }catch(e){} }
+      if(dv){ doc.addFileToVFS('DV.ttf',dv); doc.addFont('DV.ttf','DV','normal'); }
+      if(dvb){ doc.addFileToVFS('DVB.ttf',dvb); doc.addFont('DVB.ttf','DV','bold'); }
+      doc.setFont('DV','normal');
+    }catch(e){}
+  }
+
+  window.genFinancePdf = function(){
+    try{
+      var proj = curProj();
+      if(!proj){ (window.customAlert||alert)('Сначала открой объект.'); return; }
+      var cm = ev('computeMetrics');
+      if(typeof cm!=='function'){ (window.customAlert||alert)('Метрики недоступны.'); return; }
+      var m = cm(proj);
+
+      var JP = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+      var doc = new JP({unit:'mm', format:'a4', orientation:'portrait'});
+      regFont(doc);
+
+      var PW=210, PH=297, M=12, R=PW-M, y=M+4;
+      var BLUE=[13,71,161], DARK=[33,33,33], GRAY=[117,117,117], GREEN=[27,127,60], RED=[198,40,40];
+
+      var brand = (typeof getBrand==='function') ? getBrand() : {};
+      try{
+        y = drawBrandHeader(doc, PW, {
+          title:'Финансовый отчёт', docNum:'ФО'+(proj.kpNumber||''), date:today(),
+          objname:proj.name||'', address:proj.address||'', noParties:true,
+          leftLabel:'ЗАКАЗЧИК', leftName:proj.client||'—',
+          rightLabel:'ПОДРЯДЧИК', rightName:brand.contractor||brand.name||'—'
+        });
+        y = Math.max(y, 52) + 2;
+      }catch(e){
+        doc.setFont('DV','bold'); doc.setFontSize(15); doc.setTextColor(BLUE[0],BLUE[1],BLUE[2]);
+        doc.text('Финансовый отчёт', M, y+6); y += 14;
+      }
+
+      function band(label){
+        if(y > PH-40){ doc.addPage(); regFont(doc); y=M+4; }
+        doc.setFillColor(BLUE[0],BLUE[1],BLUE[2]); doc.rect(M,y,R-M,7,'F');
+        doc.setFont('DV','bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
+        doc.text(label, M+3, y+4.9); y += 10;
+      }
+      function line(label, value, opts){
+        opts = opts || {};
+        if(y > PH-24){ doc.addPage(); regFont(doc); y=M+4; }
+        doc.setFont('DV', opts.bold?'bold':'normal'); doc.setFontSize(opts.bold?9.5:9);
+        var c = opts.color || DARK;
+        doc.setTextColor(GRAY[0],GRAY[1],GRAY[2]); doc.text(String(label), M+3, y);
+        doc.setTextColor(c[0],c[1],c[2]);
+        doc.text(String(value), R-3, y, {align:'right'});
+        y += opts.bold ? 6.5 : 5.6;
+      }
+      function rule(){ doc.setDrawColor(224,224,224); doc.line(M+3,y-2.5,R-3,y-2.5); y += 1.5; }
+
+      /* 1. План по договору */
+      band('1. ПЛАН ПО ДОГОВОРУ');
+      line('Смета заказчику (без скидки)', rub(m.planC));
+      if(m.disc>0){
+        line('Скидка ' + pct(m.disc), '− ' + rub(m.planC - m.payAll));
+      }
+      line('К оплате заказчиком', rub(m.payAll), {bold:true});
+      line('Фонд оплаты мастеров (план)', rub(m.planM));
+      line('Плановая прибыль', rub(m.payAll - m.planM), {bold:true,
+        color:(m.payAll-m.planM)>=0?GREEN:RED});
+      line('Плановая рентабельность', pct(m.planC>0 ? (m.payAll-m.planM)/m.payAll*100 : 0));
+
+      /* 2. Выполнено */
+      y += 3; band('2. ВЫПОЛНЕНО И ЗАКРЫТО АКТАМИ');
+      var factPay = m.factPay;
+      line('Закрыто актами (заказчику)', rub(factPay), {bold:true});
+      line('Начислено мастерам', rub(m.factM));
+      line('Фактическая прибыль', rub(factPay - m.factM), {bold:true,
+        color:(factPay-m.factM)>=0?GREEN:RED});
+      line('Фактическая рентабельность', pct(factPay>0 ? (factPay-m.factM)/factPay*100 : 0));
+      rule();
+      line('Готовность работ', m.doneN + ' из ' + m.totalN +
+        (m.totalN>0 ? ('  (' + Math.round(m.doneN/m.totalN*100) + ' %)') : ''));
+      line('Остаток к закрытию (заказчик)', rub(Math.max(0, m.payAll - factPay)));
+      line('Остаток к начислению мастерам', rub(Math.max(0, m.planM - m.factM)));
+      if(m.predvC>0) line('Авансировано предварительными актами', rub(m.predvC));
+
+      /* 3. Движение денежных средств */
+      y += 3; band('3. ДВИЖЕНИЕ ДЕНЕЖНЫХ СРЕДСТВ');
+      var fw = proj.finWork || {income:0, spent:0};
+      var fm = proj.finMat  || {income:0, spent:0};
+      line('Работы: получено от заказчика', rub(fw.income));
+      line('Работы: выплачено мастерам', rub(fw.spent));
+      line('Работы: остаток на руках', rub((fw.income||0)-(fw.spent||0)), {bold:true,
+        color:((fw.income||0)-(fw.spent||0))>=0?GREEN:RED});
+      rule();
+      line('Материалы: получено от заказчика', rub(fm.income));
+      line('Материалы: потрачено', rub(fm.spent));
+      line('Материалы: остаток на руках', rub((fm.income||0)-(fm.spent||0)), {bold:true,
+        color:((fm.income||0)-(fm.spent||0))>=0?GREEN:RED});
+      rule();
+      var totIn=(fw.income||0)+(fm.income||0), totOut=(fw.spent||0)+(fm.spent||0);
+      line('ИТОГО поступило', rub(totIn), {bold:true});
+      line('ИТОГО израсходовано', rub(totOut), {bold:true});
+      line('ИТОГО остаток', rub(totIn-totOut), {bold:true, color:(totIn-totOut)>=0?GREEN:RED});
+
+      /* 4. Реестр актов */
+      var acts = proj.acts || [];
+      y += 3; band('4. РЕЕСТР АКТОВ (' + acts.length + ')');
+      if(!acts.length){
+        doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(GRAY[0],GRAY[1],GRAY[2]);
+        doc.text('Актов не оформлено', M+3, y); y += 6;
+      } else {
+        doc.setFont('DV','bold'); doc.setFontSize(8); doc.setTextColor(GRAY[0],GRAY[1],GRAY[2]);
+        doc.text('№', M+3, y); doc.text('Дата', M+18, y); doc.text('Тип', M+45, y);
+        doc.text('Заказчику', M+105, y, {align:'right'});
+        doc.text('Мастерам', R-3, y, {align:'right'});
+        y += 4.5;
+        var sumC=0, sumM=0;
+        acts.forEach(function(a){
+          if(y > PH-30){ doc.addPage(); regFont(doc); y=M+4; }
+          var dC=0, dM=0;
+          try{
+            var bad = ev('buildActData');
+            if(typeof bad==='function'){
+              dC = bad(proj, a, false).totalAfter || 0;
+              dM = bad(proj, a, true).total || 0;
+            }
+          }catch(e){}
+          sumC += dC; sumM += dM;
+          doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+          doc.text(String(a.number||'—'), M+3, y);
+          doc.text(String(a.date||'—'), M+18, y);
+          doc.text(a.type==='avr' ? 'АВР (выполнено)' : 'Предварительный (аванс)', M+45, y);
+          doc.text(rub(dC), M+105, y, {align:'right'});
+          doc.text(rub(dM), R-3, y, {align:'right'});
+          y += 5;
+        });
+        doc.setDrawColor(180,180,180); doc.line(M+3,y-2,R-3,y-2); y += 2;
+        doc.setFont('DV','bold'); doc.setFontSize(8.5); doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+        doc.text('ИТОГО по актам', M+3, y);
+        doc.text(rub(sumC), M+105, y, {align:'right'});
+        doc.text(rub(sumM), R-3, y, {align:'right'});
+        y += 8;
+      }
+
+      /* 5. Подписи */
+      if(y > PH-40){ doc.addPage(); regFont(doc); y=M+4; }
+      y = Math.max(y+6, PH-36);
+      doc.setFont('DV','normal'); doc.setFontSize(8.5); doc.setTextColor(GRAY[0],GRAY[1],GRAY[2]);
+      doc.text('Отчёт сформирован ' + today() + ' автоматически из данных объекта.', M+3, y); y += 9;
+      doc.setDrawColor(150,150,150);
+      doc.line(M+3, y, M+80, y); doc.line(R-80, y, R-3, y); y += 4;
+      doc.setFontSize(8);
+      doc.text('Подрядчик / ' + (brand.contractor||brand.name||''), M+3, y);
+      doc.text('Бухгалтер', R-3, y, {align:'right'});
+
+      try{ if(typeof drawBrandFooter==='function') drawBrandFooter(doc, PW, PH); }catch(e){}
+
+      var safeNum = String(proj.kpNumber||'obj').replace(/[^a-zA-Z0-9_-]/g,'');
+      doc.save('FINOTCHET_' + safeNum + '_' + today().replace(/\./g,'-') + '.pdf');
+      if(typeof window.toast==='function') window.toast('Финансовый отчёт готов');
+    }catch(e){
+      (window.customAlert||alert)('Финансовый отчёт: ' + e.message);
+    }
+  };
+
+  /* кнопка в панели документов */
+  function addBtn(){
+    var bar = document.querySelector('.doc-toolbar');
+    if(!bar || document.getElementById('mtf38FinBtn')) return;
+    var lab = document.createElement('div');
+    lab.className = 'doc-group-label';
+    lab.textContent = '💰 Финансы';
+    var row = document.createElement('div');
+    row.className = 'doc-row';
+    var b = document.createElement('button');
+    b.id = 'mtf38FinBtn';
+    b.className = 'doc-btn client';
+    b.type = 'button';
+    b.textContent = '📊 Финансовый отчёт';
+    b.onclick = function(){ window.genFinancePdf(); };
+    row.appendChild(b);
+    bar.appendChild(lab); bar.appendChild(row);
+  }
+  function run(){ try{ addBtn(); }catch(e){} }
+  if(document.readyState!=='loading') run(); else document.addEventListener('DOMContentLoaded', run);
+  setInterval(run, 1500);
+})();
+</script>
