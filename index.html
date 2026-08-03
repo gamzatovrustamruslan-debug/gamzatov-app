@@ -749,29 +749,32 @@ body:not(.edit-mode) .add-row { display:none; }
 
   <!-- ДОКУМЕНТЫ -->
   <div class="doc-toolbar">
-    <div class="doc-group-label">📄 Документы по всей смете</div>
+    <!-- MTFIX39: инструменты сгруппированы по стадиям работы с объектом.
+         Все onclick и id сохранены — патчи цепляются к ним, а не к порядку. -->
+    <div class="doc-group-label">1️⃣ Смета и предложение</div>
     <div class="doc-row">
       <button class="doc-btn client" onclick="genDoc('kp')">📋 КП заказчику</button>
-      <button class="doc-btn master" onclick="genDoc('task')">🔧 Задание мастеру</button>
     </div>
-    <div class="doc-group-label">📑 Акты — закрытие объёма / авансы</div>
+    <div class="doc-group-label">2️⃣ Работы — задания и сроки</div>
     <div class="doc-row">
-      <button class="doc-btn edit" onclick="showActForm()">➕ Создать акт</button>
-      <button class="doc-btn edit" id="actsListBtn" onclick="showActsList()">📑 Акты · 0</button>
+      <button class="doc-btn master" onclick="genDoc('task')">🔧 Задание мастеру</button>
+      <button class="doc-btn memo" onclick="openMemo()">📌 Памятка мастерам</button>
     </div>
-    <div class="doc-group-label">📅 Сроки</div>
     <div class="doc-row">
       <button class="doc-btn gantt" onclick="showGantt()">📅 План-график (Гант)</button>
     </div>
-    <div class="doc-group-label">✅ Контроль</div>
+    <div class="doc-group-label">3️⃣ Контроль хода работ</div>
     <div class="doc-row">
       <button class="doc-btn check" onclick="openChecklist()">✅ Чек-лист прораба</button>
       <button class="doc-btn tasks" onclick="openTasks()">📋 Задачи</button>
     </div>
-    <div class="doc-group-label">📄 Документы</div>
+    <div class="doc-group-label">4️⃣ Закрытие объёмов и расчёты</div>
+    <div class="doc-row">
+      <button class="doc-btn edit" onclick="showActForm()">➕ Создать акт</button>
+      <button class="doc-btn edit" id="actsListBtn" onclick="showActsList()">📑 Акты · 0</button>
+    </div>
     <div class="doc-row">
       <button class="doc-btn receipt" onclick="openReceipt()">🧾 Расписка (аванс)</button>
-      <button class="doc-btn memo" onclick="openMemo()">📌 Памятка мастерам</button>
     </div>
   </div>
 
@@ -9117,7 +9120,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     if(!bar || document.getElementById('mtf38FinBtn')) return;
     var lab = document.createElement('div');
     lab.className = 'doc-group-label';
-    lab.textContent = '💰 Финансы';
+    lab.textContent = '5️⃣ Финансы';
     var row = document.createElement('div');
     row.className = 'doc-row';
     var b = document.createElement('button');
