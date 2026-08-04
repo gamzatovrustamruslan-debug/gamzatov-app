@@ -9465,6 +9465,8 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   function P(){ try{ return activeProject(); }catch(e){ return null; } }
   function pd(s){ try{ return parseRuDate(s)||null; }catch(e){ return null; } }
   function ru(d){ if(!d) return ''; return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear(); }
+  // «ИП Гамзатов Р.Р.» и «Гайнова С.В.» уже кончаются точкой — вторую не ставим
+  window.__prDot=function(s){ s=String(s==null?'':s).trim(); return (!s||/[.!?…]$/.test(s))?s:(s+'.'); };
   function addDays(d,n){ var x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
   function diffD(a,b){ if(!a||!b) return null; return Math.round((b-a)/86400000); }
   function today0(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
@@ -9627,9 +9629,9 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
       +'<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:4px">АКТ ПРОДЛЕНИЯ СРОКОВ</div>'
       +'<div style="text-align:center;margin-bottom:14px">к Договору подряда № '+esc(num)+' от '+esc(p.contractDate||'____')+'</div>'
       +'<div style="display:flex;justify-content:space-between"><span>'+(city?('г. '+esc(city)):'')+'</span><span>'+esc(actDate)+'</span></div>'
-      +'<p><b>Подрядчик:</b> '+esc(c.name||'')+(c.short?(' ('+esc(c.short)+')'):'')+(c.director?(', в лице '+esc(c.director)):'')+(c.inn?(', ИНН '+esc(c.inn)):'')+'.</p>'
-      +'<p><b>Заказчик:</b> '+esc(p.client||p.name||'________________')+(p.phone?(', тел. '+esc(p.phone)):'')+(p.address?(', адрес: '+esc(p.address)):'')+'.</p>'
-      +'<p><b>Объект:</b> '+esc(p.name||'')+'.</p>'
+      +'<p><b>Подрядчик:</b> '+esc(window.__prDot((c.name||'')+(c.short?(' ('+c.short+')'):'')+(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):'')))+'</p>'
+      +'<p><b>Заказчик:</b> '+esc(window.__prDot((p.client||p.name||'________________')+(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):'')))+'</p>'
+      +'<p><b>Объект:</b> '+esc(window.__prDot(p.name||''))+'</p>'
       +'<p>Стороны пришли к соглашению продлить срок выполнения '+esc(b.title)+' на <b>'+esc(days)+'</b> календарных дней.</p>'
       +'<p>Начало по договору: '+esc(b.raw.planStart||'____')+'. Первоначальный срок завершения: '+esc(b.raw.planEnd||'____')+'. Новый срок завершения: <b>'+esc(nd)+'</b>.</p>'
       +reasonHtml(V('prReasonX'))
@@ -10476,11 +10478,12 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
       doc.text(d.actDate||ruToday(), M+W, y, {align:'right'}); y+=9;
 
       var F={bottom:BOT, top:TOP};
-      y=flow(doc,[{t:'Подрядчик:',b:1},{t:' '+(c.name||'')+(c.short?(' ('+c.short+')'):'')
-        +(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):'')+'.'}],M,y,W,LH,F)+2.5;
-      y=flow(doc,[{t:'Заказчик:',b:1},{t:' '+(p.client||p.name||'________________')
-        +(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):'')+'.'}],M,y,W,LH,F)+2.5;
-      y=flow(doc,[{t:'Объект:',b:1},{t:' '+(p.name||'')+'.'}],M,y,W,LH,F)+4;
+      var dot=window.__prDot||function(s){ return s; };
+      y=flow(doc,[{t:'Подрядчик:',b:1},{t:' '+dot((c.name||'')+(c.short?(' ('+c.short+')'):'')
+        +(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):''))}],M,y,W,LH,F)+2.5;
+      y=flow(doc,[{t:'Заказчик:',b:1},{t:' '+dot((p.client||p.name||'________________')
+        +(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):''))}],M,y,W,LH,F)+2.5;
+      y=flow(doc,[{t:'Объект:',b:1},{t:' '+dot(p.name||'')}],M,y,W,LH,F)+4;
 
       y=flow(doc,[{t:'Стороны пришли к соглашению продлить срок выполнения '+b.title+' на '},
         {t:String(d.days||'__'),b:1},{t:' календарных дней.'}],M,y,W,LH,F)+2.5;
