@@ -9450,3 +9450,877 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   };
 })();
 </script>
+
+<!-- MTFIX46: акт продления сроков открывался только при заведённых этапах.
+     Список <select id="prEtap"> собирался из p.stages, и при пустом массиве
+     оказывался пустым — раскрывать было нечего. Форма пересобрана: первой
+     строкой всегда идёт «Весь объект (без этапа)», дни и новая дата считаются
+     друг из друга. Поля получили свои id (суффикс X), чтобы обработчики
+     исходного модуля «Сроки» не перерисовывали превью поверх нового. -->
+<script>
+(function(){
+  if(window.__MTFIX46) return; window.__MTFIX46 = true;
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function pd(s){ try{ return parseRuDate(s)||null; }catch(e){ return null; } }
+  function ru(d){ if(!d) return ''; return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear(); }
+  function addDays(d,n){ var x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+  function diffD(a,b){ if(!a||!b) return null; return Math.round((b-a)/86400000); }
+  function today0(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
+  function persist(){ try{ saveLocal&&saveLocal(); }catch(e){} try{ scheduleCloudSync&&scheduleCloudSync(); }catch(e){} }
+  function V(id){ var e=document.getElementById(id); return e?e.value:''; }
+
+  function company(){
+    try{
+      var st=JSON.parse(localStorage.getItem('gamzatov_smeta_v4'))||{};
+      var list=Array.isArray(st.companies)?st.companies:[];
+      var c=list.filter(function(x){ return x.id===st.activeCompanyId; })[0]||list[0];
+      if(c) return c;
+    }catch(e){}
+    var b={}; try{ b=getBrand()||{}; }catch(e){}
+    return { name:b.name||'', short:b.contractor||'', director:b.contractor||'', inn:'' };
+  }
+  function stShift(st){
+    var pe=pd(st.planEnd), fe=pd(st.factEnd), auto=0;
+    if(pe){ if(fe) auto=diffD(pe,fe); else if(st.status!=='done' && today0()>pe) auto=diffD(pe,today0()); }
+    return (typeof st.shiftDays==='number')?st.shiftDays:auto;
+  }
+  // База отсчёта: для этапа — плановый конец, для объекта в целом — дата сдачи.
+  function baseOf(p,i){
+    if(i<0) return { end:pd(p.dateEnd), start:pd(p.dateStart), title:'работ по Объекту в целом', raw:{planStart:p.dateStart,planEnd:p.dateEnd} };
+    var st=(p.stages||[])[i]||{};
+    return { end:pd(st.planEnd), start:pd(st.planStart), title:'этапа работ «'+(st.name||('Этап '+(i+1)))+'»', raw:st, st:st };
+  }
+  function curIdx(){ var e=document.getElementById('prEtapX'); return e?parseInt(e.value,10):-1; }
+
+  window.openProdlenie = function(stageIdx){
+    var p=P(); if(!p){ try{ customAlert('Откройте объект'); }catch(e){ alert('Откройте объект'); } return; }
+    var body=document.getElementById('srkBody'); if(!body) return;
+    var stages=p.stages||[], sel;
+    if(stageIdx!=null && stageIdx>=0 && stages[stageIdx]) sel=stageIdx;
+    else { var late=-1; stages.forEach(function(st,i){ if(late<0 && stShift(st)>0) late=i; }); sel=late; }
+    var opts='<option value="-1"'+(sel<0?' selected':'')+'>🏠 Весь объект (без этапа)</option>'
+      +stages.map(function(st,i){ return '<option value="'+i+'"'+(i===sel?' selected':'')+'>'+esc(st.name||('Этап '+(i+1)))+'</option>'; }).join('');
+    var hint=stages.length
+      ? 'Выберите этап либо оставьте «Весь объект» — тогда акт продлевает общий срок сдачи.'
+      : 'Этапы по объекту не заведены — акт будет на весь объект. Этого достаточно для подписания.';
+    var t=new Date();
+    body.innerHTML='<button class="srk-tab" onclick="backToSroki()">← К срокам</button>'
+      +'<div class="srk-section-title">📄 Акт продления сроков</div>'
+      +'<div class="srk-grid" style="grid-template-columns:1fr 1fr">'
+      +'<div class="srk-f" style="grid-column:1/3"><label>Что продлеваем</label><select id="prEtapX">'+opts+'</select>'
+      +'<div style="font-size:11px;color:#6b7d97;margin-top:4px">'+hint+'</div></div>'
+      +'<div class="srk-f"><label>Кол-во дней продления</label><input id="prDaysX" type="number" min="1" placeholder="например 14"></div>'
+      +'<div class="srk-f"><label>Новый срок завершения</label><input id="prNewDateX" placeholder="дд.мм.гггг"></div>'
+      +'<div class="srk-f"><label>Дата акта</label><input id="prActDateX"></div>'
+      +'<div class="srk-f"><label>Город</label><input id="prCityX" placeholder="Город"></div>'
+      +'<div class="srk-f" style="grid-column:1/3"><label>Причина продления</label><input id="prReasonX" placeholder="например: задержка поставки материала Заказчиком"></div>'
+      +'<div class="srk-f" style="grid-column:1/3"><label style="text-transform:none;font-size:12px;color:#11305a;display:flex;align-items:center;gap:8px;cursor:pointer">'
+      +'<input type="checkbox" id="prApplyX" checked> Зафиксировать продление в проекте (сдвиг, причина и запись в журнал)</label></div></div>'
+      +'<div id="prBaseX" class="prolong-info" style="margin-top:8px"></div>'
+      +'<button class="srk-btn act" style="margin-top:10px" onclick="printProdlenie()">🖨 Сформировать и печать акта</button>'
+      +'<div id="prPreviewX" style="margin-top:14px;border:1px solid #e3eaf4;border-radius:12px;padding:16px;background:#fff"></div>';
+    document.getElementById('prActDateX').value=ru(t);
+    var stt={}; try{ stt=JSON.parse(localStorage.getItem('gamzatov_smeta_v4')||'{}'); }catch(e){}
+    document.getElementById('prCityX').value=(p.actCity||stt.actCity||'Москва');
+    prSyncFromStage();
+  };
+
+  // Подставляет причину и сдвиг выбранного этапа, пересчитывает дату.
+  function prSyncFromStage(){
+    var p=P(); if(!p) return;
+    var i=curIdx(), b=baseOf(p,i);
+    var days = i<0 ? (function(){ var m=0; (p.stages||[]).forEach(function(s){ m=Math.max(m,stShift(s)||0); });
+                                   if(!m && b.end && today0()>b.end) m=diffD(b.end,today0()); return m; })()
+                   : stShift(b.st||{});
+    var reason = i<0 ? (p.prolongReason||'') : ((b.st&&b.st.shiftReason)||'');
+    document.getElementById('prDaysX').value = days>0?days:'';
+    document.getElementById('prReasonX').value = reason;
+    recalcDate();
+  }
+  function recalcDate(){
+    var p=P(); if(!p) return;
+    var b=baseOf(p,curIdx()), d=parseInt(V('prDaysX'),10);
+    if(b.end && !isNaN(d) && d>0) document.getElementById('prNewDateX').value=ru(addDays(b.end,d));
+    renderBase(); preview();
+  }
+  function recalcDays(){
+    var p=P(); if(!p) return;
+    var b=baseOf(p,curIdx()), nd=pd(V('prNewDateX'));
+    if(b.end && nd){ var d=diffD(b.end,nd); document.getElementById('prDaysX').value=d>0?d:''; }
+    renderBase(); preview();
+  }
+  function renderBase(){
+    var p=P(), el=document.getElementById('prBaseX'); if(!p||!el) return;
+    var i=curIdx(), b=baseOf(p,i);
+    if(!b.end){
+      el.className='prolong-info none';
+      el.innerHTML=(i<0
+        ? 'Срок сдачи объекта не заполнен — акт сформируется, но старую дату придётся вписать вручную.'
+        : 'У этапа нет плановой даты завершения — дни продления считать не от чего.');
+      return;
+    }
+    var nd=pd(V('prNewDateX')), d=nd?diffD(b.end,nd):null;
+    el.className='prolong-info'+(d!==null&&d<0?' ahead':'');
+    el.innerHTML='По договору завершение: <b>'+ru(b.end)+'</b>'
+      +(nd?(' → новый срок: <b>'+ru(nd)+'</b> (<b class="dl">'+(d>0?'+'+d:d)+' дн.</b>)'):'');
+  }
+
+  function preview(){
+    var p=P(), box=document.getElementById('prPreviewX'); if(!p||!box) return;
+    var i=curIdx(), b=baseOf(p,i), c=company();
+    var days=V('prDaysX')||'__';
+    var reason=V('prReasonX')||'________________';
+    var nd=V('prNewDateX')||'________';
+    var city=V('prCityX'), actDate=V('prActDateX');
+    try{ p.actCity=city; }catch(e){}
+    var num=p.contractNumber||'б/н';
+    box.innerHTML='<div id="prDocX" style="font-family:\'Times New Roman\',serif;color:#000;line-height:1.5;font-size:14px">'
+      +'<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:4px">АКТ ПРОДЛЕНИЯ СРОКОВ</div>'
+      +'<div style="text-align:center;margin-bottom:14px">к Договору подряда № '+esc(num)+' от '+esc(p.contractDate||'____')+'</div>'
+      +'<div style="display:flex;justify-content:space-between"><span>'+(city?('г. '+esc(city)):'')+'</span><span>'+esc(actDate)+'</span></div>'
+      +'<p><b>Подрядчик:</b> '+esc(c.name||'')+(c.short?(' ('+esc(c.short)+')'):'')+(c.director?(', в лице '+esc(c.director)):'')+(c.inn?(', ИНН '+esc(c.inn)):'')+'.</p>'
+      +'<p><b>Заказчик:</b> '+esc(p.client||p.name||'________________')+(p.phone?(', тел. '+esc(p.phone)):'')+(p.address?(', адрес: '+esc(p.address)):'')+'.</p>'
+      +'<p><b>Объект:</b> '+esc(p.name||'')+'.</p>'
+      +'<p>Стороны пришли к соглашению продлить срок выполнения '+esc(b.title)+' на <b>'+esc(days)+'</b> календарных дней.</p>'
+      +'<p>Начало по договору: '+esc(b.raw.planStart||'____')+'. Первоначальный срок завершения: '+esc(b.raw.planEnd||'____')+'. Новый срок завершения: <b>'+esc(nd)+'</b>.</p>'
+      +'<p><b>Причина продления:</b> '+esc(reason)+'.</p>'
+      +'<p>Остальные условия Договора остаются без изменений. Настоящий акт является неотъемлемой частью Договора № '+esc(num)+'.</p>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:30px"><div>Подрядчик:<br>_______________ / '+esc(c.director||c.short||'')+'</div><div>Заказчик:<br>_______________ / '+esc(p.client||'')+'</div></div></div>';
+  }
+  window.prRenderPreview=function(){ try{ renderBase(); preview(); }catch(e){} };
+
+  window.printProdlenie=function(){
+    var p=P(); if(!p) return;
+    preview();
+    var i=curIdx(), days=parseInt(V('prDaysX'),10), nd=V('prNewDateX'), reason=V('prReasonX');
+    var apply=document.getElementById('prApplyX');
+    if(apply && apply.checked && !isNaN(days) && days>0){
+      if(i<0){
+        if(!p.dateEndBase) p.dateEndBase=p.dateEnd||'';
+        if(pd(nd)) p.dateEnd=nd;
+        p.prolongReason=reason;
+      } else {
+        var st=(p.stages||[])[i];
+        if(st){ st.shiftDays=days; st.shiftReason=reason; }
+      }
+      if(!Array.isArray(p.prolongations)) p.prolongations=[];
+      p.prolongations.push({ at:new Date().toISOString(), scope:(i<0?'object':'stage'),
+        stage:(i<0?'':(((p.stages||[])[i]||{}).name||('Этап '+(i+1)))),
+        days:days, newDate:nd, reason:reason });
+      persist();
+    }
+    var el=document.getElementById('prDocX'); if(!el) return;
+    var w=window.open('','_blank'); if(!w) return;
+    w.document.write('<html><head><meta charset="utf-8"><title>Акт продления сроков</title></head><body style="padding:40px">'+el.outerHTML+'</body></html>');
+    w.document.close(); w.focus(); setTimeout(function(){ w.print(); },300);
+  };
+
+  document.addEventListener('change',function(e){ if(e.target && e.target.id==='prEtapX') prSyncFromStage(); });
+  document.addEventListener('input',function(e){
+    if(!e.target||!e.target.id) return;
+    if(e.target.id==='prDaysX') return recalcDate();
+    if(e.target.id==='prNewDateX') return recalcDays();
+    if(['prReasonX','prActDateX','prCityX'].indexOf(e.target.id)>=0){ renderBase(); preview(); }
+  });
+
+  // Из окна сроков этапы не заводились — только просматривались. Кнопка ведёт
+  // в существующий менеджер этапов, чтобы пустой список не был тупиком.
+  function decorateStages(){
+    var cont=document.getElementById('srkStages');
+    if(!cont || document.getElementById('mtf46AddStage')) return;
+    var p=P(); if(!p) return;
+    var b=document.createElement('button');
+    b.id='mtf46AddStage'; b.className='srk-btn gantt'; b.style.cssText='margin-top:6px;width:100%';
+    b.textContent=(p.stages&&p.stages.length)?'🧱 Изменить этапы':'➕ Завести этапы';
+    b.onclick=function(){ try{ closeSroki(); }catch(e){} try{ showStageManager(); }catch(e){} };
+    cont.parentNode.insertBefore(b, cont.nextSibling);
+  }
+  ['openSroki','backToSroki'].forEach(function(fn){
+    var prev=window[fn]; if(typeof prev!=='function') return;
+    window[fn]=function(){ var r=prev.apply(this,arguments); try{ decorateStages(); }catch(e){} return r; };
+  });
+})();
+</script>
+
+<!-- MTFIX47: облачная синхронизация не работает, и вся база живёт в localStorage
+     одного браузера — очистка данных сайта стирает её без следа. Здесь три
+     уровня страховки: снимки состояния в самом localStorage (откат «на вчера»),
+     автозапись JSON в выбранную папку на диске (File System Access API,
+     Chrome) и напоминание, если копии давно не было. -->
+<style id="mtf47Style">
+#bkOverlay{position:fixed;inset:0;background:rgba(15,30,55,.55);z-index:100000;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}
+#bkOverlay.open{display:flex}
+.bk-modal{background:#fff;border-radius:18px;max-width:720px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.bk-head{background:linear-gradient(135deg,#2E7D32,#1B5E20);color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}
+.bk-head h2{margin:0;font-size:18px;font-weight:700}
+.bk-x{background:rgba(255,255,255,.2);border:0;color:#fff;width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer}
+.bk-body{padding:18px 22px;max-height:78vh;overflow:auto}
+.bk-card{border:1px solid #e3eaf4;border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.bk-card h3{margin:0 0 6px;font-size:14px;color:#11305a}
+.bk-card p{margin:0 0 8px;font-size:12px;color:#6b7d97;line-height:1.45}
+.bk-btn{border:0;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin:0 6px 6px 0}
+.bk-btn.main{background:#2E7D32;color:#fff}
+.bk-btn.sec{background:#E3F2FD;color:#0D47A1;border:1px solid #BBDEFB}
+.bk-btn.warn{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+.bk-st{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block}
+.bk-st.ok{background:#d7f5e0;color:#15803d}
+.bk-st.no{background:#ffdcdc;color:#b91c1c}
+.bk-snap{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid #eef2f7;padding:8px 0;font-size:13px;color:#11305a}
+.bk-snap:first-of-type{border-top:0}
+#bkWarn{background:#FFEBEE;border:1px solid #EF9A9A;color:#B71C1C;border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#bkWarn button{background:#B71C1C;color:#fff;border:0;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+</style>
+<script>
+(function(){
+  if(window.__MTFIX47) return; window.__MTFIX47 = true;
+
+  var KEY='gamzatov_smeta_v4', CFG='mtf47_cfg', SNAP='mtf47_snap_';
+  var MAX_SNAPS=3, SNAP_EVERY=10*60*1000, REMIND_DAYS=5, AUTOSAVE_WAIT=60*1000;
+  var dirHandle=null, timer=null;
+
+  function cfg(){ try{ return JSON.parse(localStorage.getItem(CFG))||{}; }catch(e){ return {}; } }
+  function setCfg(o){ var c=cfg(); for(var k in o) c[k]=o[k]; try{ localStorage.setItem(CFG,JSON.stringify(c)); }catch(e){} }
+  function fmtDT(ts){ if(!ts) return '—'; var d=new Date(ts);
+    return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()
+      +' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+  function kb(n){ return n>1048576 ? (n/1048576).toFixed(1)+' МБ' : Math.round(n/1024)+' КБ'; }
+  function daysSince(ts){ return ts ? Math.floor((Date.now()-ts)/86400000) : null; }
+
+  // ---------- снимки в localStorage ----------
+  function snapKeys(){
+    var out=[];
+    for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k && k.indexOf(SNAP)===0) out.push(k); }
+    return out.sort().reverse();   // ключ = SNAP + timestamp, сортировка = свежие первыми
+  }
+  function makeSnapshot(force){
+    try{
+      var raw=localStorage.getItem(KEY);
+      if(!raw || raw.indexOf('"projects":[]')>=0) return;
+      var keys=snapKeys();
+      if(!force && keys.length){
+        var lastTs=parseInt(keys[0].slice(SNAP.length),10);
+        if(Date.now()-lastTs < SNAP_EVERY) return;
+        if(localStorage.getItem(keys[0])===raw) return;   // ничего не менялось
+      }
+      var k=SNAP+Date.now();
+      for(var attempt=0; attempt<4; attempt++){
+        try{ localStorage.setItem(k, raw); break; }
+        catch(err){
+          var old=snapKeys(); if(!old.length) return;
+          localStorage.removeItem(old[old.length-1]);     // не влезло — жертвуем самым старым
+        }
+      }
+      var all=snapKeys();
+      while(all.length>MAX_SNAPS){ localStorage.removeItem(all.pop()); }
+    }catch(e){}
+  }
+  function restoreSnapshot(k){
+    var raw=localStorage.getItem(k); if(!raw) return;
+    if(!confirm('Заменить текущие данные снимком от '+fmtDT(parseInt(k.slice(SNAP.length),10))+'?\n\nТекущее состояние будет сохранено отдельным снимком.')) return;
+    makeSnapshot(true);
+    try{ localStorage.setItem(KEY, raw); }catch(e){ alert('Не удалось восстановить: '+(e.message||e)); return; }
+    location.reload();
+  }
+  window.bkRestore=restoreSnapshot;
+
+  // ---------- папка на диске (File System Access API) ----------
+  function idb(){
+    return new Promise(function(res,rej){
+      var r=indexedDB.open('mtf47db',1);
+      r.onupgradeneeded=function(){ r.result.createObjectStore('h'); };
+      r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+    });
+  }
+  function idbPut(v){ return idb().then(function(db){ return new Promise(function(res,rej){
+    var t=db.transaction('h','readwrite'); t.objectStore('h').put(v,'dir');
+    t.oncomplete=function(){ res(); }; t.onerror=function(){ rej(t.error); }; }); }); }
+  function idbGet(){ return idb().then(function(db){ return new Promise(function(res){
+    var t=db.transaction('h','readonly'), q=t.objectStore('h').get('dir');
+    q.onsuccess=function(){ res(q.result||null); }; q.onerror=function(){ res(null); }; }); })
+    .catch(function(){ return null; }); }
+  function idbDel(){ return idb().then(function(db){ return new Promise(function(res){
+    var t=db.transaction('h','readwrite'); t.objectStore('h').delete('dir');
+    t.oncomplete=function(){ res(); }; t.onerror=function(){ res(); }; }); }).catch(function(){}); }
+
+  function supported(){ return typeof window.showDirectoryPicker==='function'; }
+  function dump(){
+    var st={}; try{ st=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){}
+    return JSON.stringify({ _app:'gamzatov_smeta_v4', _exportedAt:new Date().toISOString(),
+      projects:st.projects||[], brand:st.brand||{}, managers:st.managers||[],
+      companies:st.companies||[], templates:st.templates||[] }, null, 2);
+  }
+  function perm(h,ask){
+    if(!h) return Promise.resolve('denied');
+    var o={mode:'readwrite'};
+    return h.queryPermission(o).then(function(s){
+      if(s==='granted') return 'granted';
+      if(!ask) return s;
+      return h.requestPermission(o);
+    }).catch(function(){ return 'denied'; });
+  }
+  window.bkPickFolder=function(){
+    if(!supported()){ alert('Браузер не умеет писать в папку. Работает в Chrome и Edge на компьютере.\nЗдесь пользуйтесь кнопкой «Скачать копию».'); return; }
+    window.showDirectoryPicker({ mode:'readwrite', startIn:'documents' }).then(function(h){
+      dirHandle=h; return idbPut(h);
+    }).then(function(){
+      setCfg({ autoOn:true, folder:(dirHandle&&dirHandle.name)||'' });
+      return writeBackup();
+    }).then(render).catch(function(e){ if(e && e.name!=='AbortError') alert('Не удалось: '+(e.message||e)); });
+  };
+  window.bkForget=function(){
+    dirHandle=null; setCfg({ autoOn:false, folder:'' });
+    idbDel().then(render);
+  };
+  function writeBackup(){
+    if(!dirHandle) return Promise.resolve(false);
+    return perm(dirHandle,false).then(function(s){
+      if(s!=='granted') return false;
+      var d=new Date();
+      var name='gamzatov_backup_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.json';
+      var body=dump();
+      return dirHandle.getFileHandle(name,{create:true}).then(function(fh){
+        return fh.createWritable();
+      }).then(function(w){
+        return w.write(body).then(function(){ return w.close(); });
+      }).then(function(){
+        setCfg({ lastAt:Date.now(), lastName:name, lastSize:body.length });
+        return true;
+      });
+    }).catch(function(){ return false; });
+  }
+  window.bkNow=function(){
+    if(!dirHandle){ try{ exportData(); setCfg({lastAt:Date.now(), lastName:'скачан файл'}); }catch(e){} render(); return; }
+    perm(dirHandle,true).then(function(s){
+      if(s!=='granted'){ alert('Доступ к папке не подтверждён.'); return; }
+      return writeBackup().then(function(ok){ if(!ok) alert('Записать не удалось — выберите папку заново.'); });
+    }).then(render);
+  };
+  window.bkDownload=function(){ try{ exportData(); setCfg({lastAt:Date.now(), lastName:'скачан файл'}); render(); }catch(e){} };
+
+  // ---------- перехват сохранения ----------
+  var prevSave=window.saveLocal;
+  window.saveLocal=function(){
+    var r=prevSave.apply(this,arguments);
+    try{ makeSnapshot(false); }catch(e){}
+    try{
+      if(dirHandle){ clearTimeout(timer); timer=setTimeout(function(){ writeBackup(); }, AUTOSAVE_WAIT); }
+    }catch(e){}
+    return r;
+  };
+
+  // ---------- окно ----------
+  function build(){
+    if(document.getElementById('bkOverlay')) return;
+    var ov=document.createElement('div'); ov.id='bkOverlay';
+    ov.innerHTML='<div class="bk-modal"><div class="bk-head"><h2>🛡 Резервные копии</h2>'
+      +'<button class="bk-x" onclick="bkClose()">✕</button></div><div class="bk-body" id="bkBody"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){ if(e.target===ov) bkClose(); });
+  }
+  window.bkClose=function(){ var o=document.getElementById('bkOverlay'); if(o) o.classList.remove('open'); };
+  window.bkOpen=function(){ build(); render(); document.getElementById('bkOverlay').classList.add('open'); };
+
+  function render(){
+    var body=document.getElementById('bkBody'); if(!body) return;
+    var c=cfg(), ds=daysSince(c.lastAt);
+    var stale=(ds===null||ds>=REMIND_DAYS);
+    var folderTxt=dirHandle ? ('папка «'+(dirHandle.name||c.folder||'выбрана')+'»') : 'папка не выбрана';
+    var snaps=snapKeys();
+    body.innerHTML=
+      '<div class="bk-card"><h3>Состояние</h3>'
+      +'<p>Последняя копия: <b>'+fmtDT(c.lastAt)+'</b>'+(c.lastName?(' · '+esc(c.lastName)):'')+'<br>'
+      +'Автозапись: '+folderTxt+'</p>'
+      +'<span class="bk-st '+(stale?'no':'ok')+'">'+(stale?'копии давно не было':'копия свежая')+'</span></div>'
+
+      +'<div class="bk-card"><h3>📁 Автосохранение в папку</h3>'
+      +'<p>Выберите папку один раз — приложение будет само класть туда файл базы после каждого изменения. '
+      +'Лучше указать папку облачного диска (Яндекс.Диск, OneDrive), тогда копия уедет и на сервер.'
+      +(supported()?'':'<br><b>В этом браузере недоступно</b> — работает в Chrome/Edge на компьютере.')+'</p>'
+      +'<button class="bk-btn main" onclick="bkPickFolder()">'+(dirHandle?'Сменить папку':'Выбрать папку')+'</button>'
+      +'<button class="bk-btn sec" onclick="bkNow()">Сохранить сейчас</button>'
+      +(dirHandle?'<button class="bk-btn warn" onclick="bkForget()">Отключить</button>':'')+'</div>'
+
+      +'<div class="bk-card"><h3>⬇️ Копия файлом</h3>'
+      +'<p>Скачивает JSON со всеми объектами. Восстановление — кнопкой «⬆️ Импорт» на главном экране.</p>'
+      +'<button class="bk-btn sec" onclick="bkDownload()">Скачать копию</button></div>'
+
+      +'<div class="bk-card"><h3>🕓 Снимки в браузере ('+snaps.length+')</h3>'
+      +'<p>Хранятся здесь же и защищают от случайной правки или удаления объекта. От очистки данных браузера они <b>не спасают</b> — для этого нужны копии выше.</p>'
+      +(snaps.length?snaps.map(function(k){
+          var ts=parseInt(k.slice(SNAP.length),10), sz=(localStorage.getItem(k)||'').length, n=0;
+          try{ n=(JSON.parse(localStorage.getItem(k)).projects||[]).length; }catch(e){}
+          return '<div class="bk-snap"><span>'+fmtDT(ts)+' · объектов: '+n+' · '+kb(sz)+'</span>'
+            +'<button class="bk-btn warn" style="margin:0" onclick="bkRestore(\''+k+'\')">Восстановить</button></div>';
+        }).join(''):'<p style="color:#999">Снимков пока нет — появятся по мере работы.</p>')
+      +'</div>';
+  }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
+
+  // ---------- кнопка и напоминание ----------
+  function injectBtn(){
+    var bar=document.querySelector('#homeScreen .hdr-actions');
+    if(!bar || document.getElementById('bkBtn')) return;
+    var b=document.createElement('button');
+    b.id='bkBtn'; b.className='back-btn'; b.textContent='🛡 Бэкап';
+    b.onclick=function(){ bkOpen(); };
+    var imp=bar.querySelector('[onclick*="importDataClick"]');
+    if(imp && imp.nextSibling) bar.insertBefore(b, imp.nextSibling); else bar.appendChild(b);
+  }
+  function injectWarn(){
+    var home=document.getElementById('homeScreen'); if(!home || home.classList.contains('hidden')) return;
+    var c=cfg(), ds=daysSince(c.lastAt);
+    var has=(function(){ try{ return ((JSON.parse(localStorage.getItem(KEY))||{}).projects||[]).length>0; }catch(e){ return false; } })();
+    var need = has && (ds===null || ds>=REMIND_DAYS) && !dirHandle;
+    var el=document.getElementById('bkWarn');
+    if(!need){ if(el) el.remove(); return; }
+    if(el) return;
+    el=document.createElement('div'); el.id='bkWarn';
+    el.innerHTML='<span>⚠️ Резервной копии '+(ds===null?'ещё не было':('нет '+ds+' дн.'))+'. Данные хранятся только в этом браузере.</span>'
+      +'<button onclick="bkOpen()">Настроить копии</button>';
+    var anchor=home.querySelector('.add-object-btn');
+    if(anchor) anchor.parentNode.insertBefore(el, anchor); else home.appendChild(el);
+  }
+  function tick(){ injectBtn(); injectWarn(); }
+
+  idbGet().then(function(h){
+    if(h){ return perm(h,false).then(function(s){ if(s!=='denied'){ dirHandle=h; } render(); }); }
+  }).catch(function(){});
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',tick); else tick();
+  setInterval(tick, 1500);
+  setTimeout(function(){ makeSnapshot(false); }, 6000);
+})();
+</script>
+
+<!-- MTFIX48: материалы учитывались двумя числами в финансах (внесено/потрачено),
+     без единой позиции. Здесь полноценная ведомость по объекту: что нужно,
+     что куплено, что уже на объекте, кто оплатил, и печатная форма для
+     заказчика. Итог по оплаченному заказчиком переносится в finMat.spent
+     кнопкой, чтобы не затирать введённое вручную. -->
+<style id="mx48Style">
+#mxOverlay{position:fixed;inset:0;background:rgba(15,30,55,.55);z-index:99999;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}
+#mxOverlay.open{display:flex}
+.mx-modal{background:#fff;border-radius:18px;max-width:1000px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.mx-head{background:linear-gradient(135deg,#00695C,#004D40);color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}
+.mx-head h2{margin:0;font-size:18px;font-weight:700}
+.mx-x{background:rgba(255,255,255,.2);border:0;color:#fff;width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer}
+.mx-body{padding:16px 20px;max-height:78vh;overflow:auto}
+.mx-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.mx-cell{background:#f4f7fb;border:1px solid #e3eaf4;border-radius:11px;padding:9px 11px}
+.mx-cell label{display:block;font-size:10px;color:#6b7d97;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.mx-cell .v{font-size:15px;font-weight:700;color:#11305a}
+.mx-cell.warn .v{color:#c62828}
+.mx-cell.good .v{color:#16a34a}
+.mx-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.mx-btn{border:0;border-radius:10px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.mx-btn.add{background:#00695C;color:#fff}
+.mx-btn.sec{background:#E0F2F1;color:#00695C;border:1px solid #80CBC4}
+.mx-btn.pr{background:#E3F2FD;color:#0D47A1;border:1px solid #BBDEFB}
+.mx-item{border:1px solid #e3eaf4;border-radius:12px;padding:10px 12px;margin-bottom:8px;border-left:5px solid #b9c4d4}
+.mx-item.plan{border-left-color:#f59e0b;background:#fffbef}
+.mx-item.bought{border-left-color:#1976d2;background:#f5f9ff}
+.mx-item.done{border-left-color:#16a34a;background:#f3fbf5}
+.mx-r1{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.mx-r1 input.nm{flex:1;min-width:120px;border:1px solid #d4deeb;border-radius:8px;padding:7px 9px;font-size:14px;font-family:inherit;font-weight:600;color:#11305a}
+.mx-del{background:#fdecea;color:#c62828;border:1px solid #ef9a9a;border-radius:8px;width:32px;height:32px;font-size:14px;cursor:pointer;flex:0 0 auto}
+.mx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mx-f{display:flex;flex-direction:column;gap:2px}
+.mx-f label{font-size:9px;color:#6b7d97;text-transform:uppercase}
+.mx-f input,.mx-f select{border:1px solid #d4deeb;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;width:100%;box-sizing:border-box}
+.mx-line{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#6b7d97;flex-wrap:wrap}
+.mx-line b{color:#11305a;font-size:14px}
+@media(max-width:640px){ .mx-sum{grid-template-columns:1fr 1fr} .mx-grid{grid-template-columns:1fr 1fr} }
+</style>
+<script>
+(function(){
+  if(window.__MTFIX48) return; window.__MTFIX48 = true;
+
+  var ST={ plan:'Нужно купить', bought:'Куплено', done:'На объекте' };
+  var PAY={ client:'Заказчик', contractor:'Подрядчик' };
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function persist(){ try{ saveLocal&&saveLocal(); }catch(e){} try{ scheduleCloudSync&&scheduleCloudSync(); }catch(e){} }
+  function num(v){ var n=parseFloat(String(v==null?'':v).replace(',','.')); return isNaN(n)?0:n; }
+  function rub(n){ try{ return Math.round(n).toLocaleString('ru-RU')+' ₽'; }catch(e){ return Math.round(n)+' ₽'; } }
+  function list(){ var p=P(); if(!p) return []; if(!Array.isArray(p.materials)) p.materials=[]; return p.materials; }
+  function sumOf(m){ return num(m.qty)*num(m.price); }
+
+  function totals(){
+    var all=list(), t={plan:0, bought:0, byClient:0, byContractor:0, cnt:all.length, need:0};
+    all.forEach(function(m){
+      var s=sumOf(m);
+      t.plan+=s;
+      if(m.status==='bought'||m.status==='done'){
+        t.bought+=s;
+        if(m.payer==='contractor') t.byContractor+=s; else t.byClient+=s;
+      } else t.need+=s;
+    });
+    return t;
+  }
+
+  window.mxAdd=function(){
+    var p=P(); if(!p) return;
+    list().push({ id:'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+      name:'', unit:'шт', qty:'', price:'', status:'plan', payer:'client', date:'', note:'' });
+    persist(); render();
+    setTimeout(function(){ var f=document.querySelectorAll('#mxList input.nm'); if(f.length) f[f.length-1].focus(); },60);
+  };
+  window.mxDel=function(id){
+    var p=P(); if(!p) return;
+    p.materials=list().filter(function(m){ return m.id!==id; });
+    persist(); render();
+  };
+  window.mxSet=function(id,f,v){
+    var m=list().filter(function(x){ return x.id===id; })[0]; if(!m) return;
+    m[f]=v;
+    if(f==='status' && (v==='bought'||v==='done') && !m.date){
+      var d=new Date();
+      m.date=String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+    }
+    persist();
+    if(f==='status'||f==='qty'||f==='price'||f==='payer') render(); else renderTotals();
+  };
+  window.mxToFin=function(){
+    var p=P(); if(!p) return; var t=totals();
+    if(!confirm('Записать в финансы объекта: материалы потрачено = '+rub(t.byClient)+'?\n(считается по позициям, оплаченным заказчиком)')) return;
+    if(!p.finMat) p.finMat={income:0,spent:0};
+    p.finMat.spent=Math.round(t.byClient);
+    persist();
+    try{ if(typeof renderProject==='function') renderProject(); }catch(e){}
+    alert('Записано. Проверьте блок «🧱 Материалы» в финансах объекта.');
+  };
+
+  window.mxPrint=function(){
+    var p=P(); if(!p) return;
+    var b={}; try{ b=getBrand()||{}; }catch(e){}
+    var t=totals(), all=list();
+    if(!all.length){ alert('Ведомость пуста — добавьте позиции.'); return; }
+    var rows=all.map(function(m,i){
+      return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+esc(m.name||'—')+'</td>'
+        +'<td style="text-align:center">'+esc(m.unit||'')+'</td>'
+        +'<td style="text-align:right">'+esc(String(m.qty||0))+'</td>'
+        +'<td style="text-align:right">'+rub(num(m.price))+'</td>'
+        +'<td style="text-align:right">'+rub(sumOf(m))+'</td>'
+        +'<td style="text-align:center">'+esc(ST[m.status]||'')+'</td>'
+        +'<td style="text-align:center">'+esc(PAY[m.payer]||'')+'</td>'
+        +'<td style="text-align:center">'+esc(m.date||'')+'</td></tr>';
+    }).join('');
+    var d=new Date(), td=String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+    var fm=p.finMat||{}, ost=num(fm.income)-t.byClient;
+    var html='<div style="font-family:\'Times New Roman\',serif;color:#000;font-size:13px">'
+      +'<div style="text-align:center;font-weight:700;font-size:17px;margin-bottom:2px">ВЕДОМОСТЬ МАТЕРИАЛОВ</div>'
+      +'<div style="text-align:center;margin-bottom:12px">по объекту «'+esc(p.name||'')+'» на '+td+'</div>'
+      +'<div style="margin-bottom:8px"><b>Подрядчик:</b> '+esc(b.contractor||'')+(b.phone?(', тел. '+esc(b.phone)):'')+'<br>'
+      +'<b>Заказчик:</b> '+esc(p.client||'')+(p.address?('<br><b>Адрес:</b> '+esc(p.address)):'')+'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<thead><tr style="background:#eef2f7">'
+      +['№','Наименование','Ед.','Кол-во','Цена','Сумма','Статус','Оплатил','Дата']
+        .map(function(h){ return '<th style="border:1px solid #999;padding:4px">'+h+'</th>'; }).join('')
+      +'</tr></thead><tbody>'+rows+'</tbody></table>'
+      +'<div style="margin-top:12px;font-size:13px">'
+      +'<div>Итого по ведомости: <b>'+rub(t.plan)+'</b></div>'
+      +'<div>Закуплено: <b>'+rub(t.bought)+'</b> · из них за счёт заказчика: <b>'+rub(t.byClient)+'</b>, за счёт подрядчика: <b>'+rub(t.byContractor)+'</b></div>'
+      +'<div>Осталось закупить: <b>'+rub(t.need)+'</b></div>'
+      +(fm.income?('<div style="margin-top:6px">Получено на материалы: <b>'+rub(num(fm.income))+'</b> · остаток на руках: <b>'+rub(ost)+'</b></div>'):'')
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;margin-top:34px">'
+      +'<div>Подрядчик:<br>_______________ / '+esc(b.contractor||'')+'</div>'
+      +'<div>Заказчик:<br>_______________ / '+esc(p.client||'')+'</div></div></div>';
+    var w=window.open('','_blank'); if(!w) return;
+    w.document.write('<html><head><meta charset="utf-8"><title>Ведомость материалов</title>'
+      +'<style>@page{size:A4;margin:14mm} td,th{padding:4px;border:1px solid #999}</style></head>'
+      +'<body style="padding:20px">'+html+'</body></html>');
+    w.document.close(); w.focus(); setTimeout(function(){ w.print(); },300);
+  };
+
+  function renderTotals(){
+    var el=document.getElementById('mxSum'); if(!el) return;
+    var p=P(), t=totals(), fm=(p&&p.finMat)||{};
+    var ost=num(fm.income)-t.byClient;
+    el.innerHTML='<div class="mx-cell"><label>Позиций</label><div class="v">'+t.cnt+'</div></div>'
+      +'<div class="mx-cell"><label>Всего по ведомости</label><div class="v">'+rub(t.plan)+'</div></div>'
+      +'<div class="mx-cell good"><label>Закуплено</label><div class="v">'+rub(t.bought)+'</div></div>'
+      +'<div class="mx-cell'+(ost<0?' warn':'')+'"><label>Остаток аванса</label><div class="v">'+(fm.income?rub(ost):'—')+'</div></div>';
+  }
+
+  function render(){
+    var body=document.getElementById('mxBody'); if(!body) return;
+    var p=P();
+    if(!p){ body.innerHTML='<p style="color:#888">Откройте объект, чтобы вести материалы.</p>'; return; }
+    body.innerHTML='<div class="mx-sum" id="mxSum"></div>'
+      +'<div class="mx-bar">'
+      +'<button class="mx-btn add" onclick="mxAdd()">➕ Добавить позицию</button>'
+      +'<button class="mx-btn pr" onclick="mxPrint()">🖨 Ведомость для заказчика</button>'
+      +'<button class="mx-btn sec" onclick="mxToFin()">💰 Перенести в финансы</button></div>'
+      +'<div id="mxList"></div>';
+    renderTotals();
+    var cont=document.getElementById('mxList'), all=list();
+    if(!all.length){
+      cont.innerHTML='<p style="color:#888;font-size:13px">Пока пусто. Добавьте, что нужно купить — приложение посчитает суммы '
+        +'и покажет, сколько осталось от аванса на материалы.</p>';
+      return;
+    }
+    cont.innerHTML=all.map(function(m){
+      var cls=m.status==='done'?'done':(m.status==='bought'?'bought':'plan');
+      var o=function(k){ return '<option value="'+k+'"'+(m.status===k?' selected':'')+'>'+ST[k]+'</option>'; };
+      var pOpt=function(k){ return '<option value="'+k+'"'+(m.payer===k?' selected':'')+'>'+PAY[k]+'</option>'; };
+      return '<div class="mx-item '+cls+'">'
+        +'<div class="mx-r1"><input class="nm" value="'+esc(m.name)+'" placeholder="Наименование материала" onchange="mxSet(\''+m.id+'\',\'name\',this.value)">'
+        +'<button class="mx-del" onclick="mxDel(\''+m.id+'\')">🗑</button></div>'
+        +'<div class="mx-grid">'
+        +'<div class="mx-f"><label>Кол-во</label><input type="number" step="any" value="'+esc(m.qty)+'" onchange="mxSet(\''+m.id+'\',\'qty\',this.value)"></div>'
+        +'<div class="mx-f"><label>Ед.</label><input value="'+esc(m.unit)+'" onchange="mxSet(\''+m.id+'\',\'unit\',this.value)"></div>'
+        +'<div class="mx-f"><label>Цена за ед.</label><input type="number" step="any" value="'+esc(m.price)+'" onchange="mxSet(\''+m.id+'\',\'price\',this.value)"></div>'
+        +'<div class="mx-f"><label>Статус</label><select onchange="mxSet(\''+m.id+'\',\'status\',this.value)">'+o('plan')+o('bought')+o('done')+'</select></div>'
+        +'<div class="mx-f"><label>Оплатил</label><select onchange="mxSet(\''+m.id+'\',\'payer\',this.value)">'+pOpt('client')+pOpt('contractor')+'</select></div>'
+        +'<div class="mx-f"><label>Дата покупки</label><input value="'+esc(m.date)+'" placeholder="дд.мм.гггг" onchange="mxSet(\''+m.id+'\',\'date\',this.value)"></div>'
+        +'<div class="mx-f" style="grid-column:span 2"><label>Магазин / примечание</label><input value="'+esc(m.note)+'" onchange="mxSet(\''+m.id+'\',\'note\',this.value)"></div>'
+        +'</div>'
+        +'<div class="mx-line"><span>'+esc(ST[m.status])+' · оплата: '+esc(PAY[m.payer]||'')+'</span><span>Сумма: <b>'+rub(sumOf(m))+'</b></span></div>'
+        +'</div>';
+    }).join('');
+  }
+
+  function build(){
+    if(document.getElementById('mxOverlay')) return;
+    var ov=document.createElement('div'); ov.id='mxOverlay';
+    ov.innerHTML='<div class="mx-modal"><div class="mx-head"><h2>🧱 Материалы объекта</h2>'
+      +'<button class="mx-x" onclick="closeMaterials()">✕</button></div><div class="mx-body" id="mxBody"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){ if(e.target===ov) closeMaterials(); });
+  }
+  window.closeMaterials=function(){ var o=document.getElementById('mxOverlay'); if(o) o.classList.remove('open'); };
+  window.openMaterials=function(){ build(); render(); document.getElementById('mxOverlay').classList.add('open'); };
+
+  function injectBtn(){
+    var bar=document.querySelector('.doc-toolbar');
+    if(!bar || document.getElementById('mxOpenBtn')) return;
+    var rows=bar.querySelectorAll('.doc-row');
+    var row=rows[rows.length-1]; if(!row) return;
+    var b=document.createElement('button');
+    b.id='mxOpenBtn'; b.className='doc-btn receipt'; b.textContent='🧱 Материалы';
+    b.onclick=function(){ openMaterials(); };
+    row.appendChild(b);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',injectBtn); else injectBtn();
+  setInterval(injectBtn, 1500);
+})();
+</script>
+
+<!-- MTFIX49: типовые объекты собирались заново каждый раз — 46 разделов
+     прайса вручную. Шаблон хранит выбранные работы с объёмами, ценами,
+     скидкой и названиями этапов; факт (акты, задачи, финансы) в шаблон
+     не попадает. Штатный экспорт дополнен шаблонами и справочниками,
+     иначе они терялись при переносе на другое устройство. -->
+<style id="mtf49Style">
+#tplOverlay{position:fixed;inset:0;background:rgba(15,30,55,.55);z-index:99999;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}
+#tplOverlay.open{display:flex}
+.tp-modal{background:#fff;border-radius:18px;max-width:760px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.tp-head{background:linear-gradient(135deg,#6A1B9A,#4A148C);color:#fff;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}
+.tp-head h2{margin:0;font-size:18px;font-weight:700}
+.tp-x{background:rgba(255,255,255,.2);border:0;color:#fff;width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer}
+.tp-body{padding:16px 20px;max-height:78vh;overflow:auto}
+.tp-item{border:1px solid #e3eaf4;border-radius:12px;padding:12px 14px;margin-bottom:10px;border-left:5px solid #CE93D8;background:#faf7fc}
+.tp-nm{width:100%;border:1px solid #d4deeb;border-radius:8px;padding:8px 10px;font-size:15px;font-weight:700;color:#11305a;font-family:inherit;box-sizing:border-box}
+.tp-meta{font-size:12px;color:#6b7d97;margin:6px 0 8px}
+.tp-btns{display:flex;gap:6px;flex-wrap:wrap}
+.tp-btn{border:0;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.tp-btn.go{background:#6A1B9A;color:#fff}
+.tp-btn.add{background:#F3E5F5;color:#6A1B9A;border:1px solid #CE93D8}
+.tp-btn.del{background:#fdecea;color:#c62828;border:1px solid #ef9a9a}
+.tp-save{background:#6A1B9A;color:#fff;border:0;border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-bottom:12px}
+</style>
+<script>
+(function(){
+  if(window.__MTFIX49) return; window.__MTFIX49 = true;
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function persist(){ try{ saveLocal&&saveLocal(); }catch(e){} try{ scheduleCloudSync&&scheduleCloudSync(); }catch(e){} }
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+  function rub(n){ try{ return Math.round(n).toLocaleString('ru-RU')+' ₽'; }catch(e){ return Math.round(n)+' ₽'; } }
+  function all(){ if(!Array.isArray(STATE.templates)) STATE.templates=[]; return STATE.templates; }
+  function tplSum(t){ return (t.works||[]).reduce(function(s,w){ return s+(w.selected?(w.priceC||0)*(w.qty||0):0); },0); }
+  function tplCnt(t){ return (t.works||[]).filter(function(w){ return w.selected; }).length; }
+
+  window.tplSaveCurrent=function(){
+    var p=P(); if(!p){ try{ customAlert('Откройте объект'); }catch(e){} return; }
+    var picked=(p.works||[]).filter(function(w){ return w.selected; });
+    if(!picked.length){ try{ customAlert('В объекте не выбрано ни одной работы — сохранять нечего.'); }catch(e){ alert('Нет выбранных работ'); } return; }
+    showModal('<div class="modal-title">Сохранить как шаблон</div>'
+      +'<div class="modal-text">В шаблон попадут <b>'+picked.length+'</b> работ с объёмами и ценами, скидка и названия этапов.<br>Акты, задачи и финансы не сохраняются.</div>'
+      +'<div class="modal-field"><label>Название шаблона</label><input id="tplNewName" placeholder="Двушка под ключ, 60 м²"></div>'
+      +'<div class="modal-buttons"><button class="modal-btn cancel" onclick="hideModal()">Отмена</button>'
+      +'<button class="modal-btn ok" onclick="tplDoSave()">Сохранить</button></div>');
+    setTimeout(function(){ var e=document.getElementById('tplNewName'); if(e) e.focus(); },100);
+  };
+  window.tplDoSave=function(){
+    var p=P(); if(!p) return;
+    var nm=(document.getElementById('tplNewName')||{}).value||'';
+    nm=nm.trim()||('Шаблон от '+new Date().toLocaleDateString('ru-RU'));
+    all().unshift({
+      id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+      name:nm, createdAt:Date.now(),
+      discount:p.discount||0,
+      works:clone((p.works||[]).filter(function(w){ return w.selected; })),
+      stages:(p.stages||[]).map(function(s){ return { name:s.name||'' }; }),
+      materials:clone((p.materials||[]).map(function(m){
+        return { name:m.name, unit:m.unit, qty:m.qty, price:m.price, status:'plan', payer:m.payer||'client', date:'', note:m.note||'' };
+      }))
+    });
+    persist(); hideModal();
+    try{ customAlert('Шаблон «'+nm+'» сохранён.'); }catch(e){}
+  };
+
+  window.tplRename=function(id,v){ var t=all().filter(function(x){return x.id===id;})[0]; if(t){ t.name=v; persist(); } };
+  window.tplDel=function(id){
+    var t=all().filter(function(x){return x.id===id;})[0]; if(!t) return;
+    if(!confirm('Удалить шаблон «'+(t.name||'')+'»? Объекты, созданные по нему, останутся.')) return;
+    STATE.templates=all().filter(function(x){ return x.id!==id; });
+    persist(); render();
+  };
+
+  window.tplNewObject=function(id){
+    var t=all().filter(function(x){return x.id===id;})[0]; if(!t) return;
+    closeTemplates();
+    showModal('<div class="modal-title">Новый объект по шаблону</div>'
+      +'<div class="modal-text">Шаблон: <b>'+esc(t.name)+'</b> · работ: '+tplCnt(t)+' · '+rub(tplSum(t))+'</div>'
+      +'<div class="modal-field"><label>Название объекта</label><input id="tnName" placeholder="Заречная"></div>'
+      +'<div class="modal-field"><label>Адрес</label><input id="tnAddr" placeholder="Москва, ..."></div>'
+      +'<div class="modal-field"><label>ФИО заказчика</label><input id="tnClient" placeholder="Иван Иванов"></div>'
+      +'<div class="modal-field"><label>Телефон</label><input id="tnPhone" placeholder="+7 ..."></div>'
+      +'<div class="modal-buttons"><button class="modal-btn cancel" onclick="hideModal()">Отмена</button>'
+      +'<button class="modal-btn ok" onclick="tplDoCreate(\''+id+'\')">Создать</button></div>');
+    setTimeout(function(){ var e=document.getElementById('tnName'); if(e) e.focus(); },100);
+  };
+  window.tplDoCreate=function(id){
+    var t=all().filter(function(x){return x.id===id;})[0]; if(!t) return;
+    var nm=((document.getElementById('tnName')||{}).value||'').trim();
+    if(!nm){ var e=document.getElementById('tnName'); if(e) e.focus(); return; }
+    var proj={
+      id:genUuid(), name:nm,
+      address:((document.getElementById('tnAddr')||{}).value||'').trim(),
+      client:((document.getElementById('tnClient')||{}).value||'').trim(),
+      phone:((document.getElementById('tnPhone')||{}).value||'').trim(),
+      kpNumber:'', date:new Date().toLocaleDateString('ru-RU'),
+      contractNumber:'', contractDate:'',
+      discount:t.discount||0,
+      works:clone(t.works||[]),
+      acts:[], tasks:[],
+      stages:(t.stages||[]).map(function(s){ return { name:s.name, planStart:'', planEnd:'', factStart:'', factEnd:'' }; }),
+      materials:clone(t.materials||[]),
+      schedule:{ stages:{}, works:{} },
+      createdAt:Date.now(), fromTemplate:t.name
+    };
+    STATE.projects.unshift(proj);
+    STATE.activeId=proj.id;
+    persist();
+    try{ syncProjectCloud(proj); }catch(e){}
+    hideModal();
+    try{ renderProject(); }catch(e){}
+  };
+
+  window.tplApplyHere=function(id){
+    var t=all().filter(function(x){return x.id===id;})[0], p=P();
+    if(!t||!p){ try{ customAlert('Сначала откройте объект'); }catch(e){} return; }
+    if(!confirm('Добавить работы шаблона «'+t.name+'» в объект «'+(p.name||'')+'»?\n\nУже выбранные позиции сохранят свои объёмы — обновятся только отсутствующие.')) return;
+    if(!Array.isArray(p.works)) p.works=[];
+    var have={}; p.works.forEach(function(w){ have[w.key]=w; });
+    var added=0;
+    (t.works||[]).forEach(function(w){
+      var ex=have[w.key];
+      if(ex){ if(!ex.selected){ ex.selected=true; ex.qty=w.qty; added++; } }
+      else { p.works.push(clone(w)); added++; }
+    });
+    persist(); closeTemplates();
+    try{ renderProject(); }catch(e){}
+    try{ customAlert('Добавлено позиций: '+added+'.'); }catch(e){}
+  };
+
+  function render(){
+    var body=document.getElementById('tpBody'); if(!body) return;
+    var list=all(), p=P();
+    body.innerHTML=(p?'<button class="tp-save" onclick="closeTemplates();tplSaveCurrent()">💾 Сохранить текущий объект как шаблон</button>':'')
+      +(list.length?list.map(function(t){
+        return '<div class="tp-item">'
+          +'<input class="tp-nm" value="'+esc(t.name)+'" onchange="tplRename(\''+t.id+'\',this.value)">'
+          +'<div class="tp-meta">работ: <b>'+tplCnt(t)+'</b> · сумма по прайсу: <b>'+rub(tplSum(t))+'</b>'
+          +(t.discount?(' · скидка '+t.discount+'%'):'')
+          +((t.materials&&t.materials.length)?(' · материалов: '+t.materials.length):'')
+          +' · создан '+new Date(t.createdAt||Date.now()).toLocaleDateString('ru-RU')+'</div>'
+          +'<div class="tp-btns">'
+          +'<button class="tp-btn go" onclick="tplNewObject(\''+t.id+'\')">🏠 Создать объект</button>'
+          +(p?'<button class="tp-btn add" onclick="tplApplyHere(\''+t.id+'\')">➕ Добавить в текущий</button>':'')
+          +'<button class="tp-btn del" onclick="tplDel(\''+t.id+'\')">Удалить</button></div></div>';
+      }).join('')
+      :'<p style="color:#888;font-size:13px">Шаблонов пока нет.<br><br>Соберите смету на типовом объекте, затем нажмите «💾 В шаблон» на экране объекта — следующая такая же квартира создастся за пару секунд.</p>');
+  }
+
+  function build(){
+    if(document.getElementById('tplOverlay')) return;
+    var ov=document.createElement('div'); ov.id='tplOverlay';
+    ov.innerHTML='<div class="tp-modal"><div class="tp-head"><h2>📁 Типовые объекты</h2>'
+      +'<button class="tp-x" onclick="closeTemplates()">✕</button></div><div class="tp-body" id="tpBody"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){ if(e.target===ov) closeTemplates(); });
+  }
+  window.closeTemplates=function(){ var o=document.getElementById('tplOverlay'); if(o) o.classList.remove('open'); };
+  window.openTemplates=function(){ build(); render(); document.getElementById('tplOverlay').classList.add('open'); };
+
+  function injectBtns(){
+    var bar=document.querySelector('#homeScreen .hdr-actions');
+    if(bar && !document.getElementById('tplHomeBtn')){
+      var b=document.createElement('button');
+      b.id='tplHomeBtn'; b.className='back-btn'; b.textContent='📁 Типовые';
+      b.onclick=function(){ openTemplates(); };
+      bar.insertBefore(b, bar.firstChild);
+    }
+    var mini=document.querySelector('#projectScreen .mini-tools');
+    if(mini && !document.getElementById('tplSaveBtn')){
+      var s=document.createElement('button');
+      s.id='tplSaveBtn'; s.className='mini-tool'; s.textContent='💾 В шаблон';
+      s.onclick=function(){ tplSaveCurrent(); };
+      mini.appendChild(s);
+    }
+  }
+
+  // Штатный экспорт вёз только projects и brand — шаблоны, справочник
+  // компаний и мастера при переносе пропадали.
+  var prevExport=window.exportData;
+  window.exportData=function(){
+    try{
+      var dump={ _app:'gamzatov_smeta_v4', _exportedAt:new Date().toISOString(),
+        projects:STATE.projects||[], brand:STATE.brand||{}, managers:STATE.managers||[],
+        templates:STATE.templates||[], companies:STATE.companies||[] };
+      var blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'});
+      var url=URL.createObjectURL(blob), a=document.createElement('a');
+      a.href=url; a.download='gamzatov_backup_'+todayISO().replace(/-/g,'')+'.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); },1000);
+    }catch(err){ try{ return prevExport.apply(this,arguments); }catch(e2){} }
+  };
+  var prevImport=window.doImport;
+  window.doImport=function(mode){
+    var data=window.__importBuf;
+    var r=prevImport.apply(this,arguments);
+    try{
+      if(data){
+        if(Array.isArray(data.templates)&&data.templates.length){
+          var have={}; all().forEach(function(t){ have[t.id]=1; });
+          data.templates.forEach(function(t){ if(!have[t.id]) STATE.templates.push(t); });
+        }
+        if(Array.isArray(data.managers)&&data.managers.length&&!(STATE.managers||[]).length) STATE.managers=data.managers;
+        if(Array.isArray(data.companies)&&data.companies.length&&!(STATE.companies||[]).length) STATE.companies=data.companies;
+        persist();
+      }
+    }catch(e){}
+    return r;
+  };
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',injectBtns); else injectBtns();
+  setInterval(injectBtns, 1500);
+})();
+</script>
