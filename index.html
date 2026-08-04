@@ -9494,6 +9494,19 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   }
   function curIdx(){ var e=document.getElementById('prEtapX'); return e?parseInt(e.value,10):-1; }
 
+  // Договорные даты запоминаются на время работы с формой. Иначе после
+  // фиксации продления p.dateEnd уже новая, и в акте «первоначальный срок»
+  // совпал бы с новым, а повторное нажатие считало бы дни от сдвинутой даты.
+  var SNAP=null;
+  function formBase(){
+    var p=P(), i=curIdx(), b=baseOf(p,i);
+    if(SNAP && SNAP.idx===i){
+      b.raw={ planStart:SNAP.planStart, planEnd:SNAP.planEnd };
+      b.end=pd(SNAP.planEnd); b.start=pd(SNAP.planStart);
+    }
+    return b;
+  }
+
   window.openProdlenie = function(stageIdx){
     var p=P(); if(!p){ try{ customAlert('Откройте объект'); }catch(e){ alert('Откройте объект'); } return; }
     var body=document.getElementById('srkBody'); if(!body) return;
@@ -9519,7 +9532,9 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
       +'<div class="srk-f" style="grid-column:1/3"><label style="text-transform:none;font-size:12px;color:#11305a;display:flex;align-items:center;gap:8px;cursor:pointer">'
       +'<input type="checkbox" id="prApplyX" checked> Зафиксировать продление в проекте (сдвиг, причина и запись в журнал)</label></div></div>'
       +'<div id="prBaseX" class="prolong-info" style="margin-top:8px"></div>'
-      +'<button class="srk-btn act" style="margin-top:10px" onclick="printProdlenie()">🖨 Сформировать и печать акта</button>'
+      +'<div class="srk-btns" style="margin-top:10px">'
+      +'<button class="srk-btn act" onclick="printProdlenie()">🖨 Печать акта</button>'
+      +'<button class="srk-btn gantt" onclick="pdfProdlenie()">⬇️ Скачать PDF</button></div>'
       +'<div id="prPreviewX" style="margin-top:14px;border:1px solid #e3eaf4;border-radius:12px;padding:16px;background:#fff"></div>';
     document.getElementById('prActDateX').value=ru(t);
     var stt={}; try{ stt=JSON.parse(localStorage.getItem('gamzatov_smeta_v4')||'{}'); }catch(e){}
@@ -9531,6 +9546,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   function prSyncFromStage(){
     var p=P(); if(!p) return;
     var i=curIdx(), b=baseOf(p,i);
+    SNAP={ idx:i, planStart:b.raw.planStart||'', planEnd:b.raw.planEnd||'' };
     var days = i<0 ? (function(){ var m=0; (p.stages||[]).forEach(function(s){ m=Math.max(m,stShift(s)||0); });
                                    if(!m && b.end && today0()>b.end) m=diffD(b.end,today0()); return m; })()
                    : stShift(b.st||{});
@@ -9541,19 +9557,19 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   }
   function recalcDate(){
     var p=P(); if(!p) return;
-    var b=baseOf(p,curIdx()), d=parseInt(V('prDaysX'),10);
+    var b=formBase(), d=parseInt(V('prDaysX'),10);
     if(b.end && !isNaN(d) && d>0) document.getElementById('prNewDateX').value=ru(addDays(b.end,d));
     renderBase(); preview();
   }
   function recalcDays(){
     var p=P(); if(!p) return;
-    var b=baseOf(p,curIdx()), nd=pd(V('prNewDateX'));
+    var b=formBase(), nd=pd(V('prNewDateX'));
     if(b.end && nd){ var d=diffD(b.end,nd); document.getElementById('prDaysX').value=d>0?d:''; }
     renderBase(); preview();
   }
   function renderBase(){
     var p=P(), el=document.getElementById('prBaseX'); if(!p||!el) return;
-    var i=curIdx(), b=baseOf(p,i);
+    var i=curIdx(), b=formBase();
     if(!b.end){
       el.className='prolong-info none';
       el.innerHTML=(i<0
@@ -9569,7 +9585,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
 
   function preview(){
     var p=P(), box=document.getElementById('prPreviewX'); if(!p||!box) return;
-    var i=curIdx(), b=baseOf(p,i), c=company();
+    var i=curIdx(), b=formBase(), c=company();
     var days=V('prDaysX')||'__';
     var reason=V('prReasonX')||'________________';
     var nd=V('prNewDateX')||'________';
@@ -9591,10 +9607,11 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   }
   window.prRenderPreview=function(){ try{ renderBase(); preview(); }catch(e){} };
 
-  window.printProdlenie=function(){
-    var p=P(); if(!p) return;
-    preview();
+  // Общая для печати и выгрузки PDF: записывает сдвиг в проект и в журнал.
+  window.__prApply=function(){
+    var p=P(); if(!p) return null;
     var i=curIdx(), days=parseInt(V('prDaysX'),10), nd=V('prNewDateX'), reason=V('prReasonX');
+    var b=formBase(), c=company();          // снимок берём до записи изменений
     var apply=document.getElementById('prApplyX');
     if(apply && apply.checked && !isNaN(days) && days>0){
       if(i<0){
@@ -9610,7 +9627,19 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
         stage:(i<0?'':(((p.stages||[])[i]||{}).name||('Этап '+(i+1)))),
         days:days, newDate:nd, reason:reason });
       persist();
+      // повторное нажатие (печать, затем PDF) не должно писать второй раз
+      apply.checked=false;
+      var hint=document.getElementById('prBaseX');
+      if(hint) hint.innerHTML+=' <span style="color:#15803d">· продление зафиксировано</span>';
     }
+    return { proj:p, idx:i, days:(isNaN(days)?'':days), newDate:nd, reason:reason,
+             city:V('prCityX'), actDate:V('prActDateX'), base:b, comp:c };
+  };
+
+  window.printProdlenie=function(){
+    var p=P(); if(!p) return;
+    preview();
+    window.__prApply();
     var el=document.getElementById('prDocX'); if(!el) return;
     var w=window.open('','_blank'); if(!w) return;
     w.document.write('<html><head><meta charset="utf-8"><title>Акт продления сроков</title></head><body style="padding:40px">'+el.outerHTML+'</body></html>');
@@ -10053,7 +10082,8 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     body.innerHTML='<div class="mx-sum" id="mxSum"></div>'
       +'<div class="mx-bar">'
       +'<button class="mx-btn add" onclick="mxAdd()">➕ Добавить позицию</button>'
-      +'<button class="mx-btn pr" onclick="mxPrint()">🖨 Ведомость для заказчика</button>'
+      +'<button class="mx-btn pr" onclick="mxPrint()">🖨 Ведомость (печать)</button>'
+      +'<button class="mx-btn pr" onclick="mxPdf()">⬇️ Ведомость PDF</button>'
       +'<button class="mx-btn sec" onclick="mxToFin()">💰 Перенести в финансы</button></div>'
       +'<div id="mxList"></div>';
     renderTotals();
@@ -10322,5 +10352,207 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',injectBtns); else injectBtns();
   setInterval(injectBtns, 1500);
+})();
+</script>
+
+<!-- MTFIX50: акт продления и ведомость материалов только печатались через
+     окно браузера — файла на диске не оставалось. Здесь выгрузка в PDF теми
+     же шрифтами DV/DVB, что и остальные бланки. Документ отдаётся через
+     output('blob'), а не doc.save(): save перехвачен цепочкой патчей
+     (MTFIX15/17/42), которые переименовывают файл и складывают его в
+     «Архив КП» — чужим документам там не место. -->
+<script>
+(function(){
+  if(window.__MTFIX50) return; window.__MTFIX50 = true;
+
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function num(v){ var n=parseFloat(String(v==null?'':v).replace(',','.')); return isNaN(n)?0:n; }
+  function rub(n){ try{ return Math.round(n).toLocaleString('ru-RU')+' ₽'; }catch(e){ return Math.round(n)+' ₽'; } }
+  function stamp(){ var d=new Date(); return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); }
+  function ruToday(){ var d=new Date(); return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear(); }
+
+  // Берём самый чистый конструктор: __mtf17Prev — тот, что был до обёртки
+  // MTFIX17, иначе документ поедет через её перехват text/save.
+  function mkDoc(landscape){
+    var ns=window.jspdf||{};
+    var JP=ns.__mtf17Prev||ns.jsPDF||window.jsPDF;
+    if(!JP) throw new Error('Библиотека PDF не загрузилась');
+    var doc=new JP({ unit:'mm', format:'a4', orientation:(landscape?'landscape':'portrait') });
+    var reg=window.__mtf9DV, bold=window.__mtf9DVB;
+    try{ if(!reg && typeof FONT_REG_B64!=='undefined') reg=FONT_REG_B64; }catch(e){}
+    try{ if(!bold && typeof FONT_BOLD_B64!=='undefined') bold=FONT_BOLD_B64; }catch(e){}
+    if(reg){ doc.addFileToVFS('DV.ttf',reg); doc.addFont('DV.ttf','DV','normal'); }
+    if(bold){ doc.addFileToVFS('DVB.ttf',bold); doc.addFont('DVB.ttf','DV','bold'); }
+    doc.setFont('DV','normal'); doc.setTextColor(0,0,0);
+    return doc;
+  }
+  function save(doc,name){
+    var blob=doc.output('blob');
+    var url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); },1500);
+  }
+  // Переносит текст по словам, сохраняя жирные вставки внутри абзаца.
+  function flow(doc,segs,x,y,w,lh){
+    var line=[], lw=0;
+    function put(){
+      if(!line.length) return;
+      var cx=x;
+      line.forEach(function(t){ doc.setFont('DV',t.b?'bold':'normal'); doc.text(t.s,cx,y); cx+=t.w; });
+      y+=lh; line=[]; lw=0;
+    }
+    segs.forEach(function(sg){
+      String(sg.t==null?'':sg.t).split(/(\s+)/).forEach(function(pt){
+        if(!pt) return;
+        doc.setFont('DV',sg.b?'bold':'normal');
+        var ww=doc.getTextWidth(pt), space=!/\S/.test(pt);
+        if(!space && lw+ww>w && line.length) put();
+        if(space && !line.length) return;
+        line.push({ s:pt, b:!!sg.b, w:ww }); lw+=ww;
+      });
+    });
+    put();
+    return y;
+  }
+
+  window.pdfProdlenie=function(){
+    try{
+      if(typeof window.prRenderPreview==='function') window.prRenderPreview();
+      var d=window.__prApply&&window.__prApply();
+      if(!d){ try{ customAlert('Откройте объект'); }catch(e){} return; }
+      var p=d.proj, c=d.comp, b=d.base;
+      var M=20, W=170, doc=mkDoc(false), y=24;
+
+      doc.setFont('DV','bold'); doc.setFontSize(15);
+      doc.text('АКТ ПРОДЛЕНИЯ СРОКОВ', 105, y, {align:'center'}); y+=7;
+      doc.setFont('DV','normal'); doc.setFontSize(11);
+      doc.text('к Договору подряда № '+(p.contractNumber||'б/н')+' от '+(p.contractDate||'____'), 105, y, {align:'center'}); y+=10;
+
+      doc.setFontSize(10.5);
+      doc.text(d.city?('г. '+d.city):'', M, y);
+      doc.text(d.actDate||ruToday(), M+W, y, {align:'right'}); y+=9;
+
+      var LH=5.4;
+      y=flow(doc,[{t:'Подрядчик:',b:1},{t:' '+(c.name||'')+(c.short?(' ('+c.short+')'):'')
+        +(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):'')+'.'}],M,y,W,LH)+2.5;
+      y=flow(doc,[{t:'Заказчик:',b:1},{t:' '+(p.client||p.name||'________________')
+        +(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):'')+'.'}],M,y,W,LH)+2.5;
+      y=flow(doc,[{t:'Объект:',b:1},{t:' '+(p.name||'')+'.'}],M,y,W,LH)+4;
+
+      y=flow(doc,[{t:'Стороны пришли к соглашению продлить срок выполнения '+b.title+' на '},
+        {t:String(d.days||'__'),b:1},{t:' календарных дней.'}],M,y,W,LH)+2.5;
+      y=flow(doc,[{t:'Начало по договору: '+(b.raw.planStart||'____')
+        +'. Первоначальный срок завершения: '+(b.raw.planEnd||'____')+'. Новый срок завершения: '},
+        {t:(d.newDate||'________'),b:1},{t:'.'}],M,y,W,LH)+2.5;
+      y=flow(doc,[{t:'Причина продления:',b:1},{t:' '+(d.reason||'________________')+'.'}],M,y,W,LH)+2.5;
+      y=flow(doc,[{t:'Остальные условия Договора остаются без изменений. Настоящий акт является '
+        +'неотъемлемой частью Договора № '+(p.contractNumber||'б/н')+'.'}],M,y,W,LH)+16;
+
+      if(y>250) y=250;
+      doc.setFont('DV','normal'); doc.setFontSize(10);
+      doc.text('Подрядчик:', M, y); doc.text('Заказчик:', M+92, y); y+=12;
+      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3);
+      doc.line(M,y,M+62,y); doc.line(M+92,y,M+92+62,y); y+=4.5;
+      doc.setFontSize(9);
+      doc.text(c.director||c.short||'', M, y);
+      doc.text(p.client||'', M+92, y);
+
+      save(doc,'Prodlenie-srokov_'+stamp()+'.pdf');
+    }catch(err){
+      try{ customAlert('Не удалось собрать PDF: '+(err.message||err)); }catch(e){ alert('Ошибка PDF: '+(err.message||err)); }
+    }
+  };
+
+  var ST={ plan:'Нужно купить', bought:'Куплено', done:'На объекте' };
+  var PAY={ client:'Заказчик', contractor:'Подрядчик' };
+
+  window.mxPdf=function(){
+    try{
+      var p=P(); if(!p){ try{ customAlert('Откройте объект'); }catch(e){} return; }
+      var all=Array.isArray(p.materials)?p.materials:[];
+      if(!all.length){ try{ customAlert('Ведомость пуста — добавьте позиции.'); }catch(e){ alert('Ведомость пуста'); } return; }
+      var brand={}; try{ brand=getBrand()||{}; }catch(e){}
+      var doc=mkDoc(true), M=15, PW=297, W=PW-M*2, y=18;
+
+      doc.setFont('DV','bold'); doc.setFontSize(14);
+      doc.text('ВЕДОМОСТЬ МАТЕРИАЛОВ', PW/2, y, {align:'center'}); y+=6;
+      doc.setFont('DV','normal'); doc.setFontSize(10);
+      doc.text('по объекту «'+(p.name||'')+'» на '+ruToday(), PW/2, y, {align:'center'}); y+=8;
+
+      doc.setFontSize(9.5);
+      doc.text('Подрядчик: '+(brand.contractor||'')+(brand.phone?(', тел. '+brand.phone):''), M, y); y+=4.6;
+      doc.text('Заказчик: '+(p.client||'')+(p.address?(' · '+p.address):''), M, y); y+=7;
+
+      var cols=[
+        {t:'№',      w:9,   a:'center'},
+        {t:'Наименование', w:101, a:'left'},
+        {t:'Ед.',    w:14,  a:'center'},
+        {t:'Кол-во', w:18,  a:'right'},
+        {t:'Цена',   w:24,  a:'right'},
+        {t:'Сумма',  w:28,  a:'right'},
+        {t:'Статус', w:26,  a:'center'},
+        {t:'Оплатил',w:24,  a:'center'},
+        {t:'Дата',   w:23,  a:'center'}
+      ];
+      function cellX(i){ var x=M; for(var k=0;k<i;k++) x+=cols[k].w; return x; }
+      function put(i,txt,yy){
+        var c=cols[i], x=cellX(i);
+        if(c.a==='right') doc.text(String(txt),x+c.w-2,yy,{align:'right'});
+        else if(c.a==='center') doc.text(String(txt),x+c.w/2,yy,{align:'center'});
+        else doc.text(String(txt),x+2,yy);
+      }
+      function header(){
+        doc.setFillColor(238,242,247); doc.rect(M,y-5,W,7,'F');
+        doc.setFont('DV','bold'); doc.setFontSize(8.5);
+        cols.forEach(function(c,i){ put(i,c.t,y); });
+        doc.setDrawColor(150,150,150); doc.setLineWidth(0.2);
+        doc.line(M,y+2,M+W,y+2);
+        y+=6; doc.setFont('DV','normal');
+      }
+      header();
+
+      var t={plan:0,bought:0,byClient:0,byContractor:0,need:0};
+      doc.setFontSize(8.5);
+      all.forEach(function(m,i){
+        var s=num(m.qty)*num(m.price);
+        t.plan+=s;
+        if(m.status==='bought'||m.status==='done'){ t.bought+=s; if(m.payer==='contractor') t.byContractor+=s; else t.byClient+=s; }
+        else t.need+=s;
+        // splitTextToSize иногда оставляет перенос внутри элемента — если не
+        // раскрыть его, высота строки будет занижена и соседние наедут.
+        var lines=doc.splitTextToSize(String(m.name||'—'), cols[1].w-4).join('\n').split('\n');
+        var h=Math.max(6.4, lines.length*4.4+2);
+        if(y+h>195){ doc.addPage(); y=18; header(); doc.setFontSize(8.5); }
+        put(0,i+1,y); put(2,m.unit||'',y); put(3,m.qty||0,y);
+        put(4,rub(num(m.price)),y); put(5,rub(s),y);
+        put(6,ST[m.status]||'',y); put(7,PAY[m.payer]||'',y); put(8,m.date||'',y);
+        lines.forEach(function(ln,k){ doc.text(ln, cellX(1)+2, y+k*4.4); });
+        y+=h;
+        doc.setDrawColor(225,230,238); doc.setLineWidth(0.15); doc.line(M,y-2.2,M+W,y-2.2);
+      });
+
+      y+=6; if(y>178){ doc.addPage(); y=20; }
+      var fm=p.finMat||{}, ost=num(fm.income)-t.byClient;
+      doc.setFontSize(10);
+      y=flow(doc,[{t:'Итого по ведомости: '},{t:rub(t.plan),b:1}],M,y,W,5.4)+1;
+      y=flow(doc,[{t:'Закуплено: '},{t:rub(t.bought),b:1},{t:' · за счёт заказчика: '},
+        {t:rub(t.byClient),b:1},{t:' · за счёт подрядчика: '},{t:rub(t.byContractor),b:1}],M,y,W,5.4)+1;
+      y=flow(doc,[{t:'Осталось закупить: '},{t:rub(t.need),b:1}],M,y,W,5.4)+1;
+      if(num(fm.income)) y=flow(doc,[{t:'Получено на материалы: '},{t:rub(num(fm.income)),b:1},
+        {t:' · остаток на руках: '},{t:rub(ost),b:1}],M,y,W,5.4);
+
+      y+=16; if(y>190) y=190;
+      doc.setFontSize(10); doc.setFont('DV','normal');
+      doc.text('Подрядчик:', M, y); doc.text('Заказчик:', M+140, y); y+=12;
+      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3);
+      doc.line(M,y,M+70,y); doc.line(M+140,y,M+210,y); y+=4.5;
+      doc.setFontSize(9);
+      doc.text(brand.contractor||'', M, y); doc.text(p.client||'', M+140, y);
+
+      save(doc,'Vedomost-materialov_'+stamp()+'.pdf');
+    }catch(err){
+      try{ customAlert('Не удалось собрать PDF: '+(err.message||err)); }catch(e){ alert('Ошибка PDF: '+(err.message||err)); }
+    }
+  };
 })();
 </script>
