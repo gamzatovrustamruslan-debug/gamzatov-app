@@ -9603,40 +9603,86 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
         return { kind:'p', text:s };
       });
   };
+  // Разметка причины в стиле бланка: подзаголовки синим, пункты с отступом.
   function reasonHtml(txt){
     var parts=window.__prReasonParts(txt);
-    if(!parts.length) return '<p><b>Причина продления:</b> ________________.</p>';
-    var out='<p style="margin-bottom:4px"><b>Причина продления:</b>'
-      +(parts[0].kind==='p'?(' '+esc(parts[0].text)):'')+'</p>';
-    parts.slice(parts[0].kind==='p'?1:0).forEach(function(pt){
-      if(pt.kind==='li') out+='<p style="margin:2px 0 2px 14px">— '+esc(pt.text)+'</p>';
-      else if(pt.kind==='h') out+='<p style="margin:8px 0 3px"><b>'+esc(pt.text)+'</b></p>';
-      else out+='<p style="margin:4px 0">'+esc(pt.text)+'</p>';
-    });
-    return out;
+    if(!parts.length) parts=[{ kind:'p', text:'________________' }];
+    return parts.map(function(pt){
+      if(pt.kind==='li') return '<div style="margin:3px 0 3px 16px">— '+esc(pt.text)+'</div>';
+      if(pt.kind==='h') return '<div style="margin:11px 0 4px;font-weight:700;color:#0D47A1">'+esc(pt.text)+'</div>';
+      return '<div style="margin:0 0 7px">'+esc(pt.text)+'</div>';
+    }).join('');
   }
 
+  // Тот же бланк, что у КП и актов: шапка компании, синие заголовки,
+  // врезка со сроком, блоки сторон и подписи внизу.
   function preview(){
     var p=P(), box=document.getElementById('prPreviewX'); if(!p||!box) return;
     var i=curIdx(), b=formBase(), c=company();
     var days=V('prDaysX')||'__';
-    var reason=V('prReasonX')||'________________';
-    var nd=V('prNewDateX')||'________';
+    var nd=V('prNewDateX')||'';
     var city=V('prCityX'), actDate=V('prActDateX');
     try{ p.actCity=city; }catch(e){}
     var num=p.contractNumber||'б/н';
-    box.innerHTML='<div id="prDocX" style="font-family:\'Times New Roman\',serif;color:#000;line-height:1.5;font-size:14px">'
-      +'<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:4px">АКТ ПРОДЛЕНИЯ СРОКОВ</div>'
-      +'<div style="text-align:center;margin-bottom:14px">к Договору подряда № '+esc(num)+' от '+esc(p.contractDate||'____')+'</div>'
-      +'<div style="display:flex;justify-content:space-between"><span>'+(city?('г. '+esc(city)):'')+'</span><span>'+esc(actDate)+'</span></div>'
-      +'<p><b>Подрядчик:</b> '+esc(window.__prDot((c.name||'')+(c.short?(' ('+c.short+')'):'')+(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):'')))+'</p>'
-      +'<p><b>Заказчик:</b> '+esc(window.__prDot((p.client||p.name||'________________')+(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):'')))+'</p>'
-      +'<p><b>Объект:</b> '+esc(window.__prDot(p.name||''))+'</p>'
-      +'<p>Стороны пришли к соглашению продлить срок выполнения '+esc(b.title)+' на <b>'+esc(days)+'</b> календарных дней.</p>'
-      +'<p>Начало по договору: '+esc(b.raw.planStart||'____')+'. Первоначальный срок завершения: '+esc(b.raw.planEnd||'____')+'. Новый срок завершения: <b>'+esc(nd)+'</b>.</p>'
+    var br={}; try{ br=getBrand()||{}; }catch(e){}
+    var seq=(((p.prolongations)||[]).length)+1;
+    var dot=window.__prDot||function(s){ return s; };
+    var contacts=[br.phone,br.site,br.email].filter(Boolean).join('<br>');
+
+    function party(label,text){
+      return '<div style="margin-bottom:9px"><div style="font-size:11px;color:#9e9e9e;letter-spacing:.04em">'+label+'</div>'
+        +'<div style="font-size:13.5px;color:#212121">'+esc(dot(text))+'</div></div>';
+    }
+    function sign(label,name){
+      return '<div style="flex:1 1 190px"><div style="font-size:11px;color:#9e9e9e">'+label+'</div>'
+        +'<div style="font-weight:700;font-size:14px;color:#212121;margin:3px 0 2px;min-height:18px">'+esc(name||'')+'</div>'
+        +'<div style="border-top:1px solid #424242"></div>'
+        +'<div style="font-size:11px;color:#9e9e9e;margin-top:2px">Подпись</div></div>';
+    }
+
+    box.innerHTML='<div id="prDocX" style="font-family:Arial,Helvetica,sans-serif;color:#212121;line-height:1.45;font-size:13.5px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'
+        +'<div><div style="font-size:21px;font-weight:700;color:#0D47A1;line-height:1.1">'+esc(br.name||'ГАМЗАТОВ СТРОЙ')+'</div>'
+        +(br.slogan?('<div style="font-size:11px;color:#787878;margin-top:2px">'+esc(br.slogan)+'</div>'):'')+'</div>'
+        +'<div style="font-size:11px;color:#787878;text-align:right">'+contacts+'</div></div>'
+      +'<div style="border-top:2px solid #0D47A1;margin:9px 0 13px"></div>'
+
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">'
+        +'<div style="flex:1 1 210px">'
+          +'<div style="font-size:18px;font-weight:700;color:#0D47A1">Акт продления сроков</div>'
+          +'<div style="margin:6px 0 4px"><span style="background:#E1BEE7;color:#4A148C;font-weight:700;font-size:12px;padding:2px 9px;border-radius:4px">ПС'+seq+'</span>'
+          +'<span style="color:#757575;font-size:12.5px;margin-left:10px">от '+esc(actDate||'')+'</span></div>'
+          +'<div style="color:#757575;font-size:12.5px">Объект: '+esc(p.name||'')+(p.address?('<br>'+esc(p.address)):'')+'</div>'
+        +'</div>'
+        +(nd?('<div style="border:1px solid #FFCDD2;background:#FFFAFA;border-radius:6px;padding:8px 12px;min-width:150px">'
+          +'<div style="font-size:11.5px;color:#757575">новый срок</div>'
+          +'<div style="font-weight:700;font-size:16px;color:#C62828;text-align:right;margin-top:2px">'+esc(nd)+'</div></div>'):'')
+      +'</div>'
+
+      +(p.contractNumber?('<div style="color:#0D47A1;font-size:12.5px;margin-top:10px">По договору № '+esc(num)+(p.contractDate?(' от '+esc(p.contractDate)):'')+'</div>'):'')
+      +(city?('<div style="color:#757575;font-size:12.5px;margin-top:4px">г. '+esc(city)+'</div>'):'')
+
+      +'<div style="margin-top:12px">'
+      +party('ПОДРЯДЧИК',(c.name||'')+(c.short?(' ('+c.short+')'):'')+(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):''))
+      +party('ЗАКАЗЧИК',(p.client||p.name||'________________')+(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):''))
+      +'</div>'
+
+      +'<div style="margin:4px 0 7px">Стороны пришли к соглашению продлить срок выполнения '+esc(b.title)+' на <b>'+esc(days)+'</b> календарных дней.</div>'
+      +'<div style="margin-bottom:12px">Начало по договору: '+esc(b.raw.planStart||'____')+'. Первоначальный срок завершения: '+esc(b.raw.planEnd||'____')+'. Новый срок завершения: <b>'+esc(nd||'________')+'</b>.</div>'
+
+      +'<div style="font-size:15px;font-weight:700;color:#0D47A1;margin-bottom:6px">Причина продления</div>'
       +reasonHtml(V('prReasonX'))
-      +'<p>Остальные условия Договора остаются без изменений. Настоящий акт является неотъемлемой частью Договора № '+esc(num)+'.</p>'
-      +'<div style="display:flex;justify-content:space-between;margin-top:30px"><div>Подрядчик:<br>_______________ / '+esc(c.director||c.short||'')+'</div><div>Заказчик:<br>_______________ / '+esc(p.client||'')+'</div></div></div>';
+
+      +'<div style="color:#757575;font-size:12px;margin-top:14px">Остальные условия Договора остаются без изменений. '
+      +'Настоящий акт является неотъемлемой частью Договора № '+esc(num)+'.</div>'
+
+      +'<div style="display:flex;justify-content:space-between;margin-top:34px;gap:22px;flex-wrap:wrap">'
+      +sign('ЗАКАЗЧИК',(p.client||p.name||''))+sign('ПОДРЯДЧИК',(c.director||c.short||c.name||''))+'</div>'
+
+      +'<div style="border-top:1px solid #dcdcdc;margin-top:30px;padding-top:5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+      +'<span style="font-size:11px;font-weight:700;color:#0D47A1">'+esc(br.name||'ГАМЗАТОВ СТРОЙ')+'</span>'
+      +'<span style="font-size:11px;color:#9e9e9e">'+esc([br.site,br.phone].filter(Boolean).join('   ·   '))+'</span></div>'
+      +'</div>';
   }
   window.prRenderPreview=function(){ try{ renderBase(); preview(); }catch(e){} };
 
@@ -10456,69 +10502,126 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     return String(s==null?'':s).replace(/[\\\/:*?"<>|\r\n\t]+/g,' ').replace(/\s+/g,' ').trim().slice(0,110);
   }
 
+  // Блок подписей ровно теми же мерками, что и стороны в drawBrandHeader:
+  // метка 8pt серым, имя 11pt тёмным, линия 0.3, подпись 8pt.
+  function parties(doc,PW,y,left,leftName,right,rightName){
+    var M=12, RIGHT=PW-M, colW=(RIGHT-M)/2;
+    doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+    doc.text(left, M, y);
+    doc.setFont('DV','bold'); doc.setFontSize(11); doc.setTextColor(33,33,33);
+    doc.text(String(leftName||''), M, y+5);
+    doc.setDrawColor(66,66,66); doc.setLineWidth(0.3); doc.line(M, y+11, M+colW-8, y+11);
+    doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+    doc.text('Подпись', M, y+14);
+    var px=M+colW;
+    doc.text(right, px, y);
+    doc.setFont('DV','bold'); doc.setFontSize(11); doc.setTextColor(33,33,33);
+    doc.text(String(rightName||''), px, y+5);
+    doc.setDrawColor(66,66,66); doc.line(px, y+11, RIGHT, y+11);
+    doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+    doc.text('Подпись', px, y+14);
+    return y+20;
+  }
+  // Подвал бланка на каждой странице + нумерация, когда лист не один.
+  function finish(doc,PW,PH){
+    var n=doc.internal.getNumberOfPages();
+    for(var i=1;i<=n;i++){
+      doc.setPage(i);
+      try{ drawBrandFooter(doc,PW,PH); }catch(e){}
+      if(n>1){
+        // на одной линии с названием в подвале, иначе ложится на его черту
+        doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+        doc.text('стр. '+i+' из '+n, PW/2, PH-12, {align:'center'});
+      }
+    }
+  }
+
   window.pdfProdlenie=function(){
     try{
       if(typeof window.prRenderPreview==='function') window.prRenderPreview();
       var daysRaw=(document.getElementById('prDaysX')||{}).value||'';
       if(!parseInt(daysRaw,10) && !confirm('Количество дней продления не заполнено — в акте останется пропуск «__ календарных дней».\n\nВсё равно сформировать?')) return;
 
+      var p0=P(); var seq=(((p0&&p0.prolongations)||[]).length)+1;   // номер до записи в журнал
       var d=window.__prApply&&window.__prApply();
       if(!d){ try{ customAlert('Откройте объект'); }catch(e){} return; }
       var p=d.proj, c=d.comp, b=d.base;
-      var M=20, W=170, BOT=258, TOP=22, LH=5.4;
-      var doc=mkDoc(false), y=24;
+      var PW=210, PH=297, M=12, RIGHT=PW-M, W=RIGHT-M;
+      var BOT=264, TOP=24, LH=5.2, F={bottom:BOT, top:TOP};   // 264 — до черты подвала на 281
+      var doc=mkDoc(false);
 
-      doc.setFont('DV','bold'); doc.setFontSize(15);
-      doc.text('АКТ ПРОДЛЕНИЯ СРОКОВ', 105, y, {align:'center'}); y+=7;
-      doc.setFont('DV','normal'); doc.setFontSize(11);
-      doc.text('к Договору подряда № '+(p.contractNumber||'б/н')+' от '+(p.contractDate||'____'), 105, y, {align:'center'}); y+=10;
+      // фирменная шапка — та же, что у КП и актов
+      var y=drawBrandHeader(doc, PW, {
+        title:'Акт продления сроков',
+        docNum:'ПС'+seq, date:d.actDate||ruToday(),
+        objname:p.name||'', address:p.address||'',
+        noParties:true,
+        sumBox: d.newDate ? { label:'новый срок', totalAfterStr:d.newDate, totalStr:'', discount:0 } : null
+      });
 
-      doc.setFontSize(10.5);
-      doc.text(d.city?('г. '+d.city):'', M, y);
-      doc.text(d.actDate||ruToday(), M+W, y, {align:'right'}); y+=9;
+      if(p.contractNumber){
+        doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(13,71,161);
+        doc.text('По договору № '+p.contractNumber+(p.contractDate?(' от '+p.contractDate):''), M, y);
+        y+=6;
+      }
+      if(d.city){
+        doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(117,117,117);
+        doc.text('г. '+d.city, M, y); y+=6;
+      }
+      y+=1;
 
-      var F={bottom:BOT, top:TOP};
       var dot=window.__prDot||function(s){ return s; };
-      y=flow(doc,[{t:'Подрядчик:',b:1},{t:' '+dot((c.name||'')+(c.short?(' ('+c.short+')'):'')
-        +(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):''))}],M,y,W,LH,F)+2.5;
-      y=flow(doc,[{t:'Заказчик:',b:1},{t:' '+dot((p.client||p.name||'________________')
-        +(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):''))}],M,y,W,LH,F)+2.5;
-      y=flow(doc,[{t:'Объект:',b:1},{t:' '+dot(p.name||'')}],M,y,W,LH,F)+4;
+      function block(label,text){
+        doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+        doc.text(label, M, y); y+=4.6;
+        doc.setFontSize(9.5); doc.setTextColor(33,33,33);
+        y=flow(doc,[{t:dot(text)}],M,y,W,4.8,F)+3;
+      }
+      block('ПОДРЯДЧИК', (c.name||'')+(c.short?(' ('+c.short+')'):'')
+        +(c.director?(', в лице '+c.director):'')+(c.inn?(', ИНН '+c.inn):''));
+      block('ЗАКАЗЧИК', (p.client||p.name||'________________')
+        +(p.phone?(', тел. '+p.phone):'')+(p.address?(', адрес: '+p.address):''));
+      y+=2;
 
+      doc.setFontSize(10); doc.setTextColor(33,33,33);
       y=flow(doc,[{t:'Стороны пришли к соглашению продлить срок выполнения '+b.title+' на '},
         {t:String(d.days||'__'),b:1},{t:' календарных дней.'}],M,y,W,LH,F)+2.5;
       y=flow(doc,[{t:'Начало по договору: '+(b.raw.planStart||'____')
         +'. Первоначальный срок завершения: '+(b.raw.planEnd||'____')+'. Новый срок завершения: '},
-        {t:(d.newDate||'________'),b:1},{t:'.'}],M,y,W,LH,F)+4;
+        {t:(d.newDate||'________'),b:1},{t:'.'}],M,y,W,LH,F)+5;
 
-      // причина — абзацами, пункты с «—» выносятся списком
+      // причина — заголовком раздела, как «Условия» в остальных бланках
+      doc.setFont('DV','bold'); doc.setFontSize(11); doc.setTextColor(13,71,161);
+      if(y+LH*3>BOT){ doc.addPage(); y=TOP; }
+      doc.text('Причина продления', M, y); y+=6;
+      doc.setFont('DV','normal'); doc.setFontSize(10); doc.setTextColor(33,33,33);
+
       var parts=(window.__prReasonParts?window.__prReasonParts(d.reason):[]) || [];
       if(!parts.length) parts=[{ kind:'p', text:'________________' }];
       // не начинаем абзац, если до низа осталось меньше двух строк —
       // иначе пункт рвётся так, что на листе висит один обрывок
       function keep(need){ if(y+need>BOT){ doc.addPage(); y=TOP; } }
-      var first=parts[0].kind==='p';
-      y=flow(doc,[{t:'Причина продления:',b:1}].concat(first?[{t:' '+parts[0].text}]:[]),M,y,W,LH,F)+1.5;
-      parts.slice(first?1:0).forEach(function(pt){
-        if(pt.kind==='h'){ keep(LH*3); y+=2.5; y=flow(doc,[{t:pt.text,b:1}],M,y,W,LH,F)+1; }
+      parts.forEach(function(pt){
+        if(pt.kind==='h'){
+          keep(LH*3); y+=2;
+          doc.setTextColor(13,71,161);
+          y=flow(doc,[{t:pt.text,b:1}],M,y,W,LH,F)+1.5;
+          doc.setTextColor(33,33,33);
+        }
         else if(pt.kind==='li'){ keep(LH*2); y=flow(doc,[{t:'— '+pt.text}],M+6,y,W-6,LH,F)+0.8; }
-        else { keep(LH*2); y=flow(doc,[{t:pt.text}],M,y,W,LH,F)+1.5; }
+        else { keep(LH*2); y=flow(doc,[{t:pt.text}],M,y,W,LH,F)+1.8; }
       });
-      y+=3;
+
+      y+=5; keep(LH*3);
+      doc.setFontSize(9); doc.setTextColor(117,117,117);
       y=flow(doc,[{t:'Остальные условия Договора остаются без изменений. Настоящий акт является '
-        +'неотъемлемой частью Договора № '+(p.contractNumber||'б/н')+'.'}],M,y,W,LH,F);
+        +'неотъемлемой частью Договора № '+(p.contractNumber||'б/н')+'.'}],M,y,W,4.6,F);
 
-      // подписной блок целиком: если не помещается — переносим на новый лист
-      y+=16;
-      if(y+24>275){ doc.addPage(); y=TOP+8; }
-      doc.setFont('DV','normal'); doc.setFontSize(10);
-      doc.text('Подрядчик:', M, y); doc.text('Заказчик:', M+92, y); y+=12;
-      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3);
-      doc.line(M,y,M+62,y); doc.line(M+92,y,M+92+62,y); y+=4.5;
-      doc.setFontSize(9);
-      doc.text(c.director||c.short||'', M, y);
-      doc.text(p.client||'', M+92, y);
+      y+=14;
+      if(y+22>PH-M-14){ doc.addPage(); y=TOP+6; }
+      parties(doc,PW,y,'ЗАКАЗЧИК',(p.client||p.name||''),'ПОДРЯДЧИК',(c.director||c.short||c.name||''));
 
+      finish(doc,PW,PH);
       var num=p.contractNumber?('№ '+p.contractNumber):'б-н';
       save(doc, safeName('Акт продления сроков к договору '+num+' от '+(d.actDate||ruToday()))+'.pdf');
     }catch(err){
@@ -10535,27 +10638,34 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
       var all=Array.isArray(p.materials)?p.materials:[];
       if(!all.length){ try{ customAlert('Ведомость пуста — добавьте позиции.'); }catch(e){ alert('Ведомость пуста'); } return; }
       var brand={}; try{ brand=getBrand()||{}; }catch(e){}
-      var doc=mkDoc(true), M=15, PW=297, W=PW-M*2, y=18;
+      var doc=mkDoc(true), PW=297, PH=210, M=12, W=PW-M*2;
 
-      doc.setFont('DV','bold'); doc.setFontSize(14);
-      doc.text('ВЕДОМОСТЬ МАТЕРИАЛОВ', PW/2, y, {align:'center'}); y+=6;
-      doc.setFont('DV','normal'); doc.setFontSize(10);
-      doc.text('по объекту «'+(p.name||'')+'» на '+ruToday(), PW/2, y, {align:'center'}); y+=8;
-
-      doc.setFontSize(9.5);
-      doc.text('Подрядчик: '+(brand.contractor||'')+(brand.phone?(', тел. '+brand.phone):''), M, y); y+=4.6;
-      doc.text('Заказчик: '+(p.client||'')+(p.address?(' · '+p.address):''), M, y); y+=7;
+      // тот же фирменный бланк, что у КП и актов, только альбомный
+      var t0={plan:0}; all.forEach(function(m){ t0.plan+=num(m.qty)*num(m.price); });
+      var y=drawBrandHeader(doc, PW, {
+        title:'Ведомость материалов',
+        docNum:'МАТ', date:ruToday(),
+        objname:p.name||'', address:p.address||'',
+        noParties:true,
+        sumBox:{ label:'всего по ведомости', totalAfterStr:rub(t0.plan), totalStr:'', discount:0 }
+      });
+      if(p.contractNumber){
+        doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(13,71,161);
+        doc.text('По договору № '+p.contractNumber+(p.contractDate?(' от '+p.contractDate):''), M, y);
+        y+=6;
+      }
+      y+=1;
 
       var cols=[
-        {t:'№',      w:9,   a:'center'},
-        {t:'Наименование', w:101, a:'left'},
+        {t:'№',      w:10,  a:'center'},
+        {t:'Наименование', w:105, a:'left'},
         {t:'Ед.',    w:14,  a:'center'},
         {t:'Кол-во', w:18,  a:'right'},
-        {t:'Цена',   w:24,  a:'right'},
-        {t:'Сумма',  w:28,  a:'right'},
-        {t:'Статус', w:26,  a:'center'},
-        {t:'Оплатил',w:24,  a:'center'},
-        {t:'Дата',   w:23,  a:'center'}
+        {t:'Цена',   w:26,  a:'right'},
+        {t:'Сумма',  w:30,  a:'right'},
+        {t:'Статус', w:28,  a:'center'},
+        {t:'Оплатил',w:26,  a:'center'},
+        {t:'Дата',   w:22,  a:'center'}
       ];
       function cellX(i){ var x=M; for(var k=0;k<i;k++) x+=cols[k].w; return x; }
       function put(i,txt,yy){
@@ -10564,13 +10674,12 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
         else if(c.a==='center') doc.text(String(txt),x+c.w/2,yy,{align:'center'});
         else doc.text(String(txt),x+2,yy);
       }
+      // синяя шапка таблицы — как в КП и актах
       function header(){
-        doc.setFillColor(238,242,247); doc.rect(M,y-5,W,7,'F');
-        doc.setFont('DV','bold'); doc.setFontSize(8.5);
-        cols.forEach(function(c,i){ put(i,c.t,y); });
-        doc.setDrawColor(150,150,150); doc.setLineWidth(0.2);
-        doc.line(M,y+2,M+W,y+2);
-        y+=6; doc.setFont('DV','normal');
+        doc.setFillColor(13,71,161); doc.rect(M,y,W,8,'F');
+        doc.setFont('DV','bold'); doc.setFontSize(8); doc.setTextColor(255,255,255);
+        y+=5.3; cols.forEach(function(c,i){ put(i,c.t,y); });
+        y+=6.8; doc.setFont('DV','normal'); doc.setTextColor(33,33,33);   // отступ первой строки от полосы
       }
       header();
 
@@ -10585,7 +10694,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
         // раскрыть его, высота строки будет занижена и соседние наедут.
         var lines=doc.splitTextToSize(String(m.name||'—'), cols[1].w-4).join('\n').split('\n');
         var h=Math.max(6.4, lines.length*4.4+2);
-        if(y+h>195){ doc.addPage(); y=18; header(); doc.setFontSize(8.5); }
+        if(y+h>178){ doc.addPage(); y=20; header(); doc.setFontSize(8.5); }   // 178 — до подвала на 194
         put(0,i+1,y); put(2,m.unit||'',y); put(3,m.qty||0,y);
         put(4,rub(num(m.price)),y); put(5,rub(s),y);
         put(6,ST[m.status]||'',y); put(7,PAY[m.payer]||'',y); put(8,m.date||'',y);
@@ -10594,25 +10703,27 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
         doc.setDrawColor(225,230,238); doc.setLineWidth(0.15); doc.line(M,y-2.2,M+W,y-2.2);
       });
 
-      y+=6; if(y>178){ doc.addPage(); y=20; }
+      // строка итога — как «ИТОГО К ОПЛАТЕ» в КП и актах
+      y+=2; if(y+30>178){ doc.addPage(); y=20; }
+      doc.setDrawColor(66,66,66); doc.setLineWidth(0.4); doc.line(M,y,M+W,y); y+=7;
+      doc.setFont('DV','bold'); doc.setFontSize(12); doc.setTextColor(33,33,33);
+      doc.text('ИТОГО ПО ВЕДОМОСТИ:', M, y);
+      doc.setTextColor(198,40,40); doc.text(rub(t.plan), M+W, y, {align:'right'});
+      y+=8;
+
       var fm=p.finMat||{}, ost=num(fm.income)-t.byClient;
-      doc.setFontSize(10);
-      y=flow(doc,[{t:'Итого по ведомости: '},{t:rub(t.plan),b:1}],M,y,W,5.4)+1;
+      doc.setFont('DV','normal'); doc.setFontSize(9.5); doc.setTextColor(117,117,117);
       y=flow(doc,[{t:'Закуплено: '},{t:rub(t.bought),b:1},{t:' · за счёт заказчика: '},
-        {t:rub(t.byClient),b:1},{t:' · за счёт подрядчика: '},{t:rub(t.byContractor),b:1}],M,y,W,5.4)+1;
-      y=flow(doc,[{t:'Осталось закупить: '},{t:rub(t.need),b:1}],M,y,W,5.4)+1;
+        {t:rub(t.byClient),b:1},{t:' · за счёт подрядчика: '},{t:rub(t.byContractor),b:1}],M,y,W,5,{bottom:178,top:20})+1;
+      y=flow(doc,[{t:'Осталось закупить: '},{t:rub(t.need),b:1}],M,y,W,5,{bottom:178,top:20})+1;
       if(num(fm.income)) y=flow(doc,[{t:'Получено на материалы: '},{t:rub(num(fm.income)),b:1},
-        {t:' · остаток на руках: '},{t:rub(ost),b:1}],M,y,W,5.4);
+        {t:' · остаток на руках: '},{t:rub(ost),b:1}],M,y,W,5,{bottom:178,top:20});
 
-      y+=16;
-      if(y+24>200){ doc.addPage(); y=26; }
-      doc.setFontSize(10); doc.setFont('DV','normal');
-      doc.text('Подрядчик:', M, y); doc.text('Заказчик:', M+140, y); y+=12;
-      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3);
-      doc.line(M,y,M+70,y); doc.line(M+140,y,M+210,y); y+=4.5;
-      doc.setFontSize(9);
-      doc.text(brand.contractor||'', M, y); doc.text(p.client||'', M+140, y);
+      y+=12;
+      if(y+22>PH-M-14){ doc.addPage(); y=26; }
+      parties(doc,PW,y,'ЗАКАЗЧИК',(p.client||''),'ПОДРЯДЧИК',(brand.contractor||''));
 
+      finish(doc,PW,PH);
       save(doc, safeName('Ведомость материалов — '+(p.name||'объект')+' от '+ruToday())+'.pdf');
     }catch(err){
       try{ customAlert('Не удалось собрать PDF: '+(err.message||err)); }catch(e){ alert('Ошибка PDF: '+(err.message||err)); }
