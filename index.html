@@ -10773,11 +10773,28 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
         }
       }catch(e){}
       try{ return prev.apply(this,arguments); }
-      finally{ if(tmp && p){ try{ delete p.pricebook; }catch(e){} } }
+      finally{
+        if(tmp && p){ try{ delete p.pricebook; }catch(e){} }
+        try{ ruRoles(); }catch(e){}
+      }
     };
     wrapped.__mtf53=true;
     window.mtf6Form=wrapped;
     return true;
+  }
+
+  // Участники подставляются в список вместе с кодом роли: «Петров Пётр · master».
+  var ROLE={ customer:'Заказчик', director:'Директор', rp:'Руководитель проекта',
+    chief:'Начальник участка', foreman:'Прораб', supervisor:'Технадзор', master:'Мастер',
+    designer:'Дизайнер', supplier:'Поставщик', contractor:'Подрядчик', other:'Другое' };
+  function ruRoles(){
+    var sel=document.getElementById('mtf6Master'); if(!sel) return;
+    Array.prototype.forEach.call(sel.options,function(o){
+      var parts=String(o.text||'').split('·');
+      if(parts.length<2) return;
+      var role=parts[1].trim();
+      if(ROLE[role]) o.text=parts[0].trim()+' · '+ROLE[role];
+    });
   }
 
   // Порядковый номер по объекту вместо метки времени. Один и тот же
@@ -10792,11 +10809,25 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     return p.zmSeq;
   }
   function ruToday(){ var d=new Date(); return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear(); }
-  function pickedMaster(){
+  function pickedMasterRaw(){
     var sel=document.getElementById('mtf6Master')||document.getElementById('mtMaster');
-    if(!sel) return '';
-    var t=(sel.selectedOptions&&sel.selectedOptions[0]?sel.selectedOptions[0].text:'')||'';
-    return sel.value ? t.split('·')[0].trim() : '';
+    if(!sel || !sel.value) return '';
+    return ((sel.selectedOptions&&sel.selectedOptions[0]?sel.selectedOptions[0].text:'')||'').trim();
+  }
+  function pickedMaster(){ return pickedMasterRaw().split('·')[0].trim(); }
+  // Сроки и комментарий заполняются в форме, но генератор их не читает —
+  // он берёт из DOM только мастера, этап и отмеченные работы.
+  function readTerm(){
+    function v(id){ var e=document.getElementById(id); return e?String(e.value||'').trim():''; }
+    function ru(iso){
+      var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+      return m ? (m[3]+'.'+m[2]+'.'+m[1]) : iso;
+    }
+    var a=ru(v('mtf6Start')), b=ru(v('mtf6End')), line='';
+    if(a && b) line='Срок: '+a+' — '+b;
+    else if(a) line='Начало: '+a;
+    else if(b) line='Завершить до: '+b;
+    return { line:line, note:v('mtf6Note') };
   }
 
   // Номер и имя файла собирает функция внутри модуля, недоступная снаружи:
@@ -10806,7 +10837,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   function wrapGen(prev){
     if(typeof prev!=='function' || prev.__mtf53) return prev;
     var wrapped=function(){
-      var fio=pickedMaster();
+      var fio=pickedMaster(), fioRaw=pickedMasterRaw();
       if(noMaster(fio)){
         try{ customAlert('Выберите мастера — иначе в задании останется «— выберите мастера —».'); }
         catch(e){ alert('Выберите мастера'); }
@@ -10817,21 +10848,64 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
       // как это делают соседние патчи документа.
       var p=P(), num=null, ns=window.jspdf, Prev=ns&&ns.jsPDF;
       if(!Prev) return prev.apply(this,arguments);
+      var term=readTerm();                                // сроки и комментарий из формы
       function Cap(){
         var inst=new Prev(arguments[0],arguments[1],arguments[2]);
         var oText=inst.text.bind(inst), oSave=inst.save.bind(inst);
-        inst.text=function(txt){
+        var maxY=0;
+        // Рисует служебную строку, не сбивая шрифт основного документа.
+        function aside(fn){
+          var f,sz,c;
+          try{ f=inst.getFont(); sz=inst.getFontSize(); c=inst.getTextColor(); }catch(e){}
+          try{ fn(); }catch(e){}
           try{
-            var s=String(txt==null?'':txt);
-            if(/^(ЗМ|ZM)-\d{7,}$/.test(s)){                 // метка времени вместо номера
+            if(f) inst.setFont(f.fontName, f.fontStyle);
+            if(sz) inst.setFontSize(sz);
+            if(c) inst.setTextColor(c);
+          }catch(e){}
+        }
+        inst.text=function(txt,x,y){
+          var s='';
+          try{ s=String(Array.isArray(txt)?txt.join(' '):(txt==null?'':txt)); }catch(e){}
+          try{ if(typeof y==='number' && y<250) maxY=Math.max(maxY,y); }catch(e){}
+          try{
+            if(/^(ЗМ|ZM)-\d{7,}$/.test(s)){                // метка времени вместо номера
               if(!mapped[s]) mapped[s]='ЗМ-'+nextSeq(p);
               num=mapped[s];
               arguments[0]=num;
             }
+            // «Петров Пётр · master» — имя контакта бралось из текста пункта
+            // списка вместе со служебной ролью, и так уходило в шапку и в
+            // строку подписи.
+            else if(fioRaw && fioRaw!==fio && s.indexOf(fioRaw)>=0){
+              arguments[0]=s.split(fioRaw).join(fio);
+            }
           }catch(e){}
-          return oText.apply(null,arguments);
+          var r=oText.apply(null,arguments);
+          // сроки — справа на строке мастера: место там свободное,
+          // а раскладка документа не сдвигается
+          try{
+            if(/^Мастер:\s/.test(s) && term.line && typeof y==='number'){
+              aside(function(){
+                inst.setFont('DV','normal'); inst.setFontSize(9); inst.setTextColor(117,117,117);
+                oText(term.line, 198, y, {align:'right'});
+              });
+            }
+          }catch(e){}
+          return r;
         };
         inst.save=function(){
+          try{
+            if(term.note && maxY>0 && maxY<244){
+              var yy=maxY+9;
+              aside(function(){
+                inst.setFont('DV','bold'); inst.setFontSize(9); inst.setTextColor(13,71,161);
+                oText('Комментарий прораба', 12, yy);
+                inst.setFont('DV','normal'); inst.setFontSize(8.5); inst.setTextColor(33,33,33);
+                oText(inst.splitTextToSize(term.note, 186), 12, yy+5);
+              });
+            }
+          }catch(e){}
           var nm='Задание мастеру'+(num?(' '+num):'')+' — '+fio+' от '+ruToday();
           return oSave(safeName(nm)+'.pdf');
         };
