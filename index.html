@@ -4138,12 +4138,16 @@ function drawBrandHeader(doc, PW, o){
   // номер + дата
   let ny=y+9;
   if(o.docNum){
+    // MTFIX53: плашка была шириной ровно 30 мм, а дата всегда на M+33. Номер
+    // задания мастеру («ЗМ-1785902625881») выходил за подложку и налезал на дату.
+    doc.setFont('DV','bold'); doc.setFontSize(9);
+    var _nw = Math.max(30, doc.getTextWidth(String(o.docNum)) + 4);
     doc.setFillColor(o.isMaster?255:225, o.isMaster?224:190, o.isMaster?178:231);
-    doc.roundedRect(M, ny-4, 30, 6, 1, 1, 'F');
-    doc.setFont('DV','bold'); doc.setFontSize(9); doc.setTextColor(o.isMaster?230:74, o.isMaster?81:20, o.isMaster?0:140);
+    doc.roundedRect(M, ny-4, _nw, 6, 1, 1, 'F');
+    doc.setTextColor(o.isMaster?230:74, o.isMaster?81:20, o.isMaster?0:140);
     doc.text(o.docNum, M+2, ny);
     doc.setFont('DV','normal'); doc.setFontSize(9); doc.setTextColor(117,117,117);
-    if(o.date) doc.text('от '+o.date, M+33, ny);
+    if(o.date) doc.text('от '+o.date, M+_nw+3, ny);
   }
   y=ny+5;
   if(o.objname){
@@ -10729,5 +10733,145 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
       try{ customAlert('Не удалось собрать PDF: '+(err.message||err)); }catch(e){ alert('Ошибка PDF: '+(err.message||err)); }
     }
   };
+})();
+</script>
+
+<!-- MTFIX53: задание мастеру. Форма выбора мастера падала на p.pricebook —
+     у объектов этого поля нет, и модуль откатывался на старую форму, где
+     список мастеров строится функцией MGRS(): она читает переменную st,
+     которой в её области нет, и всегда возвращает пустой массив. Отсюда
+     «— выберите мастера —» в готовом задании. Номер брался из удалённой
+     облачной нумерации, а при её отказе — из Date.now(), поэтому в шапке
+     и в имени файла стоял «ЗМ-1785902625881». -->
+<script>
+(function(){
+  if(window.__MTFIX53) return; window.__MTFIX53 = true;
+
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function safeName(s){
+    return String(s==null?'':s).replace(/[\\\/:*?"<>|\r\n\t]+/g,' ').replace(/\s+/g,' ').trim().slice(0,110);
+  }
+  function noMaster(fio){
+    var s=String(fio||'').toLowerCase();
+    return !s.trim() || s.indexOf('выберите')>=0 || s.indexOf('не выбран')>=0;
+  }
+
+  // Форма модуля обращается к p.pricebook, которого у объекта нет. Подставляем
+  // действующий прайс на время отрисовки и убираем — иначе копия справочника
+  // осела бы в каждом объекте и раздула сохранение.
+  function wrapForm(){
+    var prev=window.mtf6Form;
+    if(typeof prev!=='function' || prev.__mtf53) return false;
+    var wrapped=function(){
+      var p=P(), tmp=false;
+      try{
+        if(p && !Array.isArray(p.pricebook)){
+          var pb=null;
+          try{ pb=(typeof pbOf==='function')?pbOf(p):null; }catch(e){}
+          if(!pb){ try{ pb=PRICEBOOK; }catch(e){} }
+          if(pb){ p.pricebook=pb; tmp=true; }
+        }
+      }catch(e){}
+      try{ return prev.apply(this,arguments); }
+      finally{ if(tmp && p){ try{ delete p.pricebook; }catch(e){} } }
+    };
+    wrapped.__mtf53=true;
+    window.mtf6Form=wrapped;
+    return true;
+  }
+
+  // Порядковый номер по объекту вместо метки времени. Один и тот же
+  // timestamp всегда даёт один и тот же номер — повторное сохранение
+  // из открытой формы не сдвигает нумерацию.
+  var mapped={};
+  function nextSeq(p){
+    if(!p) return 1;
+    var n=parseInt(p.zmSeq,10); if(isNaN(n)||n<0) n=0;
+    p.zmSeq=n+1;
+    try{ saveLocal&&saveLocal(); }catch(e){}
+    return p.zmSeq;
+  }
+  function ruToday(){ var d=new Date(); return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear(); }
+  function pickedMaster(){
+    var sel=document.getElementById('mtf6Master')||document.getElementById('mtMaster');
+    if(!sel) return '';
+    var t=(sel.selectedOptions&&sel.selectedOptions[0]?sel.selectedOptions[0].text:'')||'';
+    return sel.value ? t.split('·')[0].trim() : '';
+  }
+
+  // Номер и имя файла собирает функция внутри модуля, недоступная снаружи:
+  // она держит ссылку на свою genZM, поэтому подменять window.genZM
+  // бесполезно. Перехватываем text и save у jsPDF на время генерации —
+  // строка с меткой времени ровно одна (её печатает шапка бланка).
+  function wrapGen(prev){
+    if(typeof prev!=='function' || prev.__mtf53) return prev;
+    var wrapped=function(){
+      var fio=pickedMaster();
+      if(noMaster(fio)){
+        try{ customAlert('Выберите мастера — иначе в задании останется «— выберите мастера —».'); }
+        catch(e){ alert('Выберите мастера'); }
+        return;
+      }
+      // jsPDF раскладывает save/text по самому экземпляру, а не по прототипу,
+      // поэтому перехват прототипа ничего не даёт — оборачиваем конструктор,
+      // как это делают соседние патчи документа.
+      var p=P(), num=null, ns=window.jspdf, Prev=ns&&ns.jsPDF;
+      if(!Prev) return prev.apply(this,arguments);
+      function Cap(){
+        var inst=new Prev(arguments[0],arguments[1],arguments[2]);
+        var oText=inst.text.bind(inst), oSave=inst.save.bind(inst);
+        inst.text=function(txt){
+          try{
+            var s=String(txt==null?'':txt);
+            if(/^(ЗМ|ZM)-\d{7,}$/.test(s)){                 // метка времени вместо номера
+              if(!mapped[s]) mapped[s]='ЗМ-'+nextSeq(p);
+              num=mapped[s];
+              arguments[0]=num;
+            }
+          }catch(e){}
+          return oText.apply(null,arguments);
+        };
+        inst.save=function(){
+          var nm='Задание мастеру'+(num?(' '+num):'')+' — '+fio+' от '+ruToday();
+          return oSave(safeName(nm)+'.pdf');
+        };
+        return inst;
+      }
+      try{ Cap.prototype=Prev.prototype; Cap.API=Prev.API; Cap.version=Prev.version;
+           Object.keys(Prev).forEach(function(k){ try{ Cap[k]=Prev[k]; }catch(e){} }); }catch(e){}
+      ns.jsPDF=Cap;
+      function restore(){ if(ns.jsPDF===Cap) ns.jsPDF=Prev; }
+      try{ return prev.apply(this,arguments); }
+      finally{ setTimeout(restore, 4000); }          // страховка, если сохранение отложено
+    };
+    wrapped.__mtf53=true;
+    wrapped.__mtf18=true; wrapped.__mtf19=true;
+    return wrapped;
+  }
+
+  // MTFIX19 возвращает свою функцию на место каждые 400 мс, поэтому простое
+  // присваивание не держится. Перехватываем запись свойства и оборачиваем
+  // всё, что туда кладут.
+  function guardGen(){
+    if(window.__mtf53guard) return;
+    var cur=wrapGen(window.mtf6GenPDF);
+    try{
+      Object.defineProperty(window,'mtf6GenPDF',{
+        configurable:true,
+        get:function(){ return cur; },
+        set:function(v){ cur=wrapGen(v); }
+      });
+      window.__mtf53guard=true;
+    }catch(e){ if(cur) window.mtf6GenPDF=cur; }
+  }
+
+  // Обе функции появляются позже по файлу и переопределяются другими патчами,
+  // поэтому цепляемся, как только они станут нашими.
+  var tries=0;
+  var iv=setInterval(function(){
+    wrapForm(); guardGen();
+    if(++tries>80 || (window.mtf6Form&&window.mtf6Form.__mtf53&&window.__mtf53guard)) clearInterval(iv);
+  },300);
+  wrapForm(); guardGen();
 })();
 </script>
