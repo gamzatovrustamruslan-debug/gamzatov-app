@@ -10949,3 +10949,295 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   wrapForm(); guardGen();
 })();
 </script>
+
+<!-- MTFIX54: обмеры лежали в отдельном окне «Шапка объекта», и чтобы
+     проставить объём, приходилось открывать его, запоминать цифру,
+     закрывать и искать нужную строку. Здесь сводка обмеров закреплена
+     над сметой и едет вместе с ней, а рядом с каждой работой стоит
+     кнопка с подходящей величиной — тап подставляет её в количество. -->
+<style id="mz54Style">
+#mzBar{position:sticky;top:0;z-index:60;background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;
+  border-radius:10px;padding:7px 11px;margin:0 0 8px;display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+  font-size:11.5px;box-shadow:0 3px 10px rgba(13,71,161,.3);cursor:pointer;user-select:none}
+#mzBar .mz-i{white-space:nowrap;opacity:.92}
+#mzBar .mz-i b{font-size:13px;opacity:1;margin-left:3px}
+#mzBar .mz-edit{margin-left:auto;background:rgba(255,255,255,.18);border-radius:6px;padding:3px 8px;font-weight:600;white-space:nowrap}
+#mzBar.mz-empty{background:#F57C00;box-shadow:0 3px 10px rgba(245,124,0,.3)}
+#mzBar.mz-open{display:block}
+#mzBar.mz-open .mz-i{display:inline-block;margin-right:9px}
+#mzBar.mz-open .mz-edit{float:right;margin:0}
+.mz-tbl{width:100%;border-collapse:collapse;margin-top:8px;background:rgba(255,255,255,.1);border-radius:8px;overflow:hidden}
+.mz-tbl th{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;opacity:.75;
+  padding:5px 4px;text-align:right;white-space:nowrap}
+.mz-tbl th:first-child{text-align:left}
+.mz-tbl td{font-size:12px;padding:5px 4px;text-align:right;border-top:1px solid rgba(255,255,255,.14);white-space:nowrap}
+.mz-tbl td.mz-nm{text-align:left;font-weight:600;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.mz-tbl tr.mz-tot td{font-weight:700;border-top:1.5px solid rgba(255,255,255,.45)}
+.mz-hint{font-size:10px;opacity:.7;margin-top:6px}
+.mz-open-btn{display:inline-block;margin-top:7px;background:rgba(255,255,255,.2);border-radius:7px;
+  padding:5px 11px;font-size:11.5px;font-weight:600}
+#mzMenu .mz-sep{border-top:1px solid #e8eef5;margin:5px 0}
+.mz-fill{font-size:10px;font-weight:700;color:#0D47A1;background:#E3F2FD;border:1px solid #90CAF9;
+  border-radius:3px;padding:2px 6px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.mz-fill:active{background:#BBDEFB}
+.mz-more{font-size:10px;color:#1976D2;background:#f2f7ff;border:1px solid #cfe0f5;border-radius:3px;
+  padding:2px 5px;cursor:pointer;flex-shrink:0}
+#mzMenu{position:fixed;z-index:99999;background:#fff;border:1px solid #cfd8e3;border-radius:10px;
+  box-shadow:0 8px 26px rgba(0,0,0,.22);padding:6px;min-width:200px;max-width:88vw}
+#mzMenu .mz-h{font-size:10px;color:#90a4b8;text-transform:uppercase;padding:3px 9px 5px;letter-spacing:.04em}
+#mzMenu .mz-o{padding:9px 10px;font-size:13px;border-radius:7px;cursor:pointer;display:flex;
+  justify-content:space-between;gap:14px;color:#11305a}
+#mzMenu .mz-o:active{background:#E3F2FD}
+#mzMenu .mz-o b{color:#0D47A1}
+</style>
+<script>
+(function(){
+  if(window.__MTFIX54) return; window.__MTFIX54 = true;
+
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function n1(v){ return (Math.round(v*100)/100).toLocaleString('ru-RU'); }
+
+  // Свод обмеров по всем помещениям объекта.
+  function measures(){
+    var p=P(); if(!p) return null;
+    var rooms=Array.isArray(p.rooms)?p.rooms:[];
+    if(!rooms.length) return null;
+    var m={floor:0,wallG:0,wallC:0,perim:0,open:0,win:0,door:0,rooms:rooms.length};
+    rooms.forEach(function(r){
+      try{
+        m.floor+=roomFloor(r); m.perim+=roomPerimeter(r);
+        m.wallG+=roomWallGross(p,r); m.wallC+=roomWallClean(p,r);
+        m.open+=roomOpeningsArea(r);
+      }catch(e){}
+      m.win+=((r.windows||[]).length); m.door+=((r.doors||[]).length);
+    });
+    m.ceil=m.floor;
+    Object.keys(m).forEach(function(k){ if(typeof m[k]==='number') m[k]=Math.round(m[k]*100)/100; });
+    return m;
+  }
+
+  // Какая величина подходит работе — по единице измерения и названию.
+  function guess(name, unit){
+    var m=measures(); if(!m) return null;
+    var s=String(name||'').toLowerCase();
+    var u=String(unit||'').toLowerCase().replace(/2/g,'²').replace(/[\s.]/g,'');
+    if(u.indexOf('мп')===0||u==='м') return { v:m.perim, label:'периметр' };
+    if(u.indexOf('м²')>=0){
+      if(/потол/.test(s)) return { v:m.ceil, label:'потолок' };
+      if(/стен|штукатур|шпакл|обо[ий]|покрас|грунт|шумоизол|перегород/.test(s)) return { v:m.wallC, label:'стены' };
+      return { v:m.floor, label:'пол' };
+    }
+    if(u.indexOf('шт')>=0){
+      if(/окн|окон/.test(s)) return m.win?{ v:m.win, label:'окна' }:null;
+      if(/двер/.test(s)) return m.door?{ v:m.door, label:'двери' }:null;
+      return null;
+    }
+    return null;
+  }
+
+  function allOptions(){
+    var m=measures(); if(!m) return [];
+    var o=[
+      { label:'Пол / потолок', v:m.floor, unit:'м²' },
+      { label:'Стены чистые',  v:m.wallC, unit:'м²' },
+      { label:'Стены грязные', v:m.wallG, unit:'м²' },
+      { label:'Периметр',      v:m.perim, unit:'мп' },
+      { label:'Проёмы',        v:m.open,  unit:'м²' }
+    ];
+    if(m.win)  o.push({ label:'Окна',  v:m.win,  unit:'шт' });
+    if(m.door) o.push({ label:'Двери', v:m.door, unit:'шт' });
+    return o;
+  }
+
+  // Обмеры по каждому помещению — как строки в прежней Excel-шапке.
+  function byRoom(){
+    var p=P(); if(!p) return [];
+    return (p.rooms||[]).map(function(r){
+      var o={ name:r.name||r.type||'помещение' };
+      try{
+        o.floor=roomFloor(r); o.perim=roomPerimeter(r);
+        o.wallC=roomWallClean(p,r); o.wallG=roomWallGross(p,r);
+        o.open=roomOpeningsArea(r);
+      }catch(e){ o.floor=o.perim=o.wallC=o.wallG=o.open=0; }
+      return o;
+    });
+  }
+  // Что предложить для этой работы в разрезе помещений.
+  function roomField(unit, name){
+    var g=guess(name, unit); if(!g) return null;
+    if(g.label==='периметр') return { f:'perim', unit:'мп' };
+    if(g.label==='стены')    return { f:'wallC', unit:'м²' };
+    if(g.label==='проёмы')   return { f:'open',  unit:'м²' };
+    if(g.label==='пол'||g.label==='потолок') return { f:'floor', unit:'м²' };
+    return null;
+  }
+
+  // ---------- закреплённая полоска ----------
+  function buildBar(){
+    var cont=document.getElementById('sectionsContainer');
+    if(!cont || !cont.parentNode) return null;
+    var bar=document.getElementById('mzBar');
+    if(!bar){
+      bar=document.createElement('div'); bar.id='mzBar';
+      bar.addEventListener('click', function(e){
+        if(e.target.closest('.mz-open-btn')){
+          try{ if(typeof openRoomsHeader==='function') openRoomsHeader(); }catch(e2){}
+          return;
+        }
+        if(e.target.closest('.mz-tbl')) return;      // по таблице не сворачиваем
+        if(!measures()){ try{ openRoomsHeader(); }catch(e2){} return; }
+        _barOpen=!_barOpen; refreshBar();
+      });
+      cont.parentNode.insertBefore(bar, cont);
+    }
+    return bar;
+  }
+  var _barOpen=false;
+  function refreshBar(){
+    var scr=document.getElementById('projectScreen');
+    var bar=document.getElementById('mzBar');
+    if(!scr || scr.classList.contains('hidden')){ if(bar) bar.style.display='none'; return; }
+    bar=buildBar(); if(!bar) return;
+    bar.style.display='';
+    var m=measures();
+    if(!m){
+      bar.className='mz-empty';
+      bar.innerHTML='<span class="mz-i">📐 Обмеры не заданы — объёмы придётся вписывать вручную</span>'
+        +'<span class="mz-edit">Заполнить</span>';
+      return;
+    }
+    bar.className=_barOpen?'mz-open':'';
+    var head='<span class="mz-i">Пол<b>'+n1(m.floor)+'</b> м²</span>'
+      +'<span class="mz-i">Стены<b>'+n1(m.wallC)+'</b> м²</span>'
+      +'<span class="mz-i">Периметр<b>'+n1(m.perim)+'</b> м</span>'
+      +'<span class="mz-i">Проёмы<b>'+n1(m.open)+'</b> м²</span>'
+      +'<span class="mz-edit">'+(_barOpen?'▲ свернуть':'▼ '+m.rooms+' пом.')+'</span>';
+    // Развёрнутый вид повторяет прежнюю таблицу в Excel: строка на помещение
+    // плюс «Общая» внизу. Пока свёрнут — видны только итоги.
+    var table='';
+    if(_barOpen){
+      var rr=byRoom();
+      table='<table class="mz-tbl"><tr><th>Помещение</th><th>S пола</th><th>P пом.</th><th>S стен</th><th>Проёмы</th></tr>'
+        +rr.map(function(r){
+          return '<tr><td class="mz-nm">'+esc(r.name)+'</td><td>'+n1(r.floor)+'</td><td>'+n1(r.perim)
+            +'</td><td>'+n1(r.wallC)+'</td><td>'+n1(r.open)+'</td></tr>';
+        }).join('')
+        +'<tr class="mz-tot"><td class="mz-nm">Общая</td><td>'+n1(m.floor)+'</td><td>'+n1(m.perim)
+        +'</td><td>'+n1(m.wallC)+'</td><td>'+n1(m.open)+'</td></tr></table>'
+        +'<div class="mz-hint">Высота '+n1(objH())+' м · тап по «📐 изменить» — правка помещений</div>'
+        +'<span class="mz-open-btn">📐 изменить обмеры</span>';
+    }
+    bar.innerHTML=head+table;
+  }
+  function objH(){ var p=P(); return p&&p.objHeight!=null?Number(p.objHeight):0; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  // ---------- кнопка подстановки в строке работы ----------
+  function decorateRows(){
+    if(!measures()) return;
+    var rows=document.querySelectorAll('.work-row[data-key]');
+    Array.prototype.forEach.call(rows, function(row){
+      if(row.querySelector('.mz-fill') || row.querySelector('.mz-more')) return;
+      var nameEl=row.querySelector('.work-name, .cw-name');
+      var unitEl=row.querySelector('.unit-tag, .cw-unit');
+      var holder=row.querySelector('.work-name-row');
+      if(!holder || !unitEl) return;
+      var name=(nameEl && nameEl.value!==undefined)?nameEl.value:(nameEl?nameEl.textContent:'');
+      var unit=(unitEl.value!==undefined)?unitEl.value:unitEl.textContent;
+      var g=guess(name, unit);
+      var key=row.getAttribute('data-key');
+      if(g && g.v>0){
+        var b=document.createElement('span');
+        b.className='mz-fill'; b.setAttribute('data-mzkey',key); b.setAttribute('data-mzv',g.v);
+        b.title='подставить: '+g.label;
+        b.textContent=n1(g.v);
+        holder.appendChild(b);
+      }
+      var more=document.createElement('span');
+      more.className='mz-more'; more.setAttribute('data-mzmore',key);
+      more.title='выбрать другую величину';
+      more.textContent='▾';
+      holder.appendChild(more);
+    });
+  }
+
+  function fill(key, val){
+    var row=document.querySelector('.work-row[data-key="'+key+'"]');
+    if(!row) return;
+    if(!row.classList.contains('active')){
+      try{ toggleWork(key); }catch(e){}
+      row=document.querySelector('.work-row[data-key="'+key+'"]');
+      if(!row) return;
+    }
+    var inp=row.querySelector('.work-input.qty, input.qty');
+    if(inp){ inp.value=val; }
+    try{ onQty(key, String(val)); }catch(e){}
+    setTimeout(function(){ try{ decorateRows(); refreshBar(); }catch(e){} }, 60);
+  }
+
+  // ---------- меню выбора величины ----------
+  function closeMenu(){ var m=document.getElementById('mzMenu'); if(m) m.remove(); }
+  function openMenu(key, anchor){
+    closeMenu();
+    var opts=allOptions(); if(!opts.length) return;
+    var box=document.createElement('div'); box.id='mzMenu';
+    // Помимо итогов по объекту предлагаем ту же величину по каждому
+    // помещению — в смете часто нужен объём одной комнаты.
+    var rowsHtml='';
+    var row=document.querySelector('.work-row[data-key="'+key+'"]');
+    if(row){
+      var nm=(row.querySelector('.work-name, .cw-name')||{});
+      var un=(row.querySelector('.unit-tag, .cw-unit')||{});
+      var fld=roomField((un.value!==undefined?un.value:un.textContent),
+                        (nm.value!==undefined?nm.value:nm.textContent));
+      if(fld){
+        var rr=byRoom().filter(function(r){ return r[fld.f]>0; });
+        if(rr.length>1){
+          rowsHtml='<div class="mz-sep"></div><div class="mz-h">по помещению</div>'
+            +rr.map(function(r){
+              return '<div class="mz-o" data-v="'+r[fld.f]+'"><span>'+esc(r.name)+'</span><b>'
+                +n1(r[fld.f])+' '+fld.unit+'</b></div>';
+            }).join('');
+        }
+      }
+    }
+    box.innerHTML='<div class="mz-h">подставить в количество</div>'
+      +opts.map(function(o){
+        return '<div class="mz-o" data-v="'+o.v+'"><span>'+o.label+'</span><b>'+n1(o.v)+' '+o.unit+'</b></div>';
+      }).join('')
+      +rowsHtml;
+    document.body.appendChild(box);
+    var r=anchor.getBoundingClientRect();
+    var top=r.bottom+6, left=Math.min(r.left, window.innerWidth-box.offsetWidth-10);
+    if(top+box.offsetHeight>window.innerHeight-10) top=Math.max(10, r.top-box.offsetHeight-6);
+    box.style.top=top+'px'; box.style.left=Math.max(8,left)+'px';
+    box.addEventListener('click', function(e){
+      var o=e.target.closest('.mz-o'); if(!o) return;
+      e.stopPropagation();
+      fill(key, Number(o.getAttribute('data-v')));
+      closeMenu();
+    });
+  }
+
+  document.addEventListener('click', function(e){
+    if(!e.target || !e.target.closest) return;
+    var f=e.target.closest('.mz-fill');
+    if(f){ e.stopPropagation(); e.preventDefault(); fill(f.getAttribute('data-mzkey'), Number(f.getAttribute('data-mzv'))); return; }
+    var mo=e.target.closest('.mz-more');
+    if(mo){ e.stopPropagation(); e.preventDefault(); openMenu(mo.getAttribute('data-mzmore'), mo); return; }
+    if(!e.target.closest('#mzMenu')) closeMenu();
+  }, true);
+
+  // Смета перерисовывается на каждое изменение — навешиваемся после неё.
+  var prevRender=window.renderSections;
+  if(typeof prevRender==='function'){
+    window.renderSections=function(){
+      var r=prevRender.apply(this,arguments);
+      try{ refreshBar(); decorateRows(); }catch(e){}
+      return r;
+    };
+  }
+  setInterval(function(){ try{ refreshBar(); decorateRows(); }catch(e){} }, 1500);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',refreshBar); else refreshBar();
+})();
+</script>
