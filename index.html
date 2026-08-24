@@ -11267,3 +11267,54 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',refreshBar); else refreshBar();
 })();
 </script>
+
+<!-- MTFIX57: смена дат и дней в плане-графике перерисовывает весь список
+     через renderGantt, и прокрутка вместе с фокусом улетала в начало —
+     при десятке этапов каждое исправление приходилось искать заново.
+     Запоминаем позиции прокрутки и активное поле, возвращаем после отрисовки. -->
+<script>
+(function(){
+  if(window.__MTFIX57) return; window.__MTFIX57 = true;
+
+  function boxes(){
+    var out=[], el=document.querySelectorAll('#modalBox *');
+    for(var i=0;i<el.length;i++){
+      var e=el[i];
+      if(e.scrollHeight>e.clientHeight+2 || e.scrollWidth>e.clientWidth+2) out.push(e);
+    }
+    return out;
+  }
+  function fields(){ return document.querySelectorAll('#modalBox input, #modalBox select'); }
+
+  function keep(fn){
+    return function(){
+      var pos=boxes().map(function(b){ return [b.scrollTop, b.scrollLeft]; });
+      var f=document.activeElement, idx=-1, selEnd=null;
+      var list=fields();
+      for(var i=0;i<list.length;i++) if(list[i]===f){ idx=i; break; }
+      try{ if(f && f.selectionEnd!=null) selEnd=f.selectionEnd; }catch(e){}
+      var r=fn.apply(this, arguments);
+      setTimeout(function(){
+        try{
+          var b=boxes();
+          pos.forEach(function(p,i){ if(b[i]){ b[i].scrollTop=p[0]; b[i].scrollLeft=p[1]; } });
+          if(idx>=0){
+            var nl=fields();
+            if(nl[idx]){
+              nl[idx].focus();
+              try{ if(selEnd!=null && nl[idx].setSelectionRange) nl[idx].setSelectionRange(selEnd, selEnd); }catch(e){}
+            }
+          }
+        }catch(e){}
+      }, 0);
+      return r;
+    };
+  }
+
+  ['onStageDate','onStageDateE','onStageEndDate'].forEach(function(n){
+    if(typeof window[n]==='function' && !window[n].__mtf57){
+      window[n]=keep(window[n]); window[n].__mtf57=true;
+    }
+  });
+})();
+</script>
