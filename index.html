@@ -4120,21 +4120,34 @@ function drawBrandHeader(doc, PW, o){
   if(o.sumBox){
     // MTFIX55: сумма в предложении была красной — цвет тревоги на документе,
     // который заказчик открывает первым. Переведено на спокойный зелёный.
+    // MTFIX56: порядок строк — сверху зачёркнутая цена без скидки, под ней
+    // размер скидки, и последней итоговая сумма. Так читается как выгода:
+    // «было столько, скидка, платите столько».
     const boxW=70, boxX=RIGHT-boxW, boxY=y-3, boxH=(o.sumBox.discount>0)?20:10;
     doc.setDrawColor(165,214,167); doc.setFillColor(242,250,244);
     doc.roundedRect(boxX,boxY,boxW,boxH,1.5,1.5,'FD');
-    doc.setFontSize(9); doc.setFont('DV','normal'); doc.setTextColor(117,117,117);
-    doc.text(o.sumBox.label, boxX+3, boxY+5);
-    doc.setFont('DV','bold'); doc.setTextColor(33,160,56); doc.setFontSize(11);
-    doc.text(o.sumBox.totalAfterStr, boxX+boxW-3, boxY+5, {align:'right'});
-    if(o.sumBox.discount>0){
+    const hasDisc = o.sumBox.discount>0;
+    if(hasDisc){
+      // без скидки — красным и зачёркнуто
       doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(117,117,117);
-      doc.text('скидка', boxX+3, boxY+11); doc.text(o.sumBox.discount+'%', boxX+boxW-3, boxY+11,{align:'right'});
-      doc.text('без скидки', boxX+3, boxY+16);
-      doc.setTextColor(160,160,160);
-      doc.text(o.sumBox.totalStr, boxX+boxW-3, boxY+16,{align:'right'});
-      const tw=doc.getTextWidth(o.sumBox.totalStr); doc.setDrawColor(160,160,160); doc.setLineWidth(0.3);
-      doc.line(boxX+boxW-3-tw, boxY+15, boxX+boxW-3, boxY+15);
+      doc.text('без скидки', boxX+3, boxY+5);
+      doc.setTextColor(198,40,40);
+      doc.text(o.sumBox.totalStr, boxX+boxW-3, boxY+5, {align:'right'});
+      const tw=doc.getTextWidth(o.sumBox.totalStr); doc.setDrawColor(198,40,40); doc.setLineWidth(0.3);
+      doc.line(boxX+boxW-3-tw, boxY+4, boxX+boxW-3, boxY+4);
+      // скидка
+      doc.setTextColor(117,117,117);
+      doc.text('скидка', boxX+3, boxY+10);
+      doc.text(o.sumBox.discount+'%', boxX+boxW-3, boxY+10, {align:'right'});
+      // итог — зелёным
+      doc.setFontSize(9); doc.text(o.sumBox.label, boxX+3, boxY+16);
+      doc.setFont('DV','bold'); doc.setTextColor(33,160,56); doc.setFontSize(11);
+      doc.text(o.sumBox.totalAfterStr, boxX+boxW-3, boxY+16, {align:'right'});
+    } else {
+      doc.setFontSize(9); doc.setFont('DV','normal'); doc.setTextColor(117,117,117);
+      doc.text(o.sumBox.label, boxX+3, boxY+5);
+      doc.setFont('DV','bold'); doc.setTextColor(33,160,56); doc.setFontSize(11);
+      doc.text(o.sumBox.totalAfterStr, boxX+boxW-3, boxY+5, {align:'right'});
     }
   }
   // номер + дата
@@ -8442,7 +8455,7 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     usl:[
       '1. \u0421\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0432\u043a\u043b\u044e\u0447\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0440\u0430\u0431\u043e\u0442\u044b, \u043f\u0435\u0440\u0435\u0447\u0438\u0441\u043b\u0435\u043d\u043d\u044b\u0435 \u0432 \u0442\u0430\u0431\u043b\u0438\u0446\u0435. \u041c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u044b \u0438 \u043e\u0431\u043e\u0440\u0443\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u043f\u0440\u0435\u0434\u043e\u0441\u0442\u0430\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u043e\u043c, \u0435\u0441\u043b\u0438 \u0438\u043d\u043e\u0435 \u043d\u0435 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043e \u0421\u0442\u043e\u0440\u043e\u043d\u0430\u043c\u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u0432 \u043f\u0438\u0441\u044c\u043c\u0435\u043d\u043d\u043e\u0439 \u0444\u043e\u0440\u043c\u0435.',
       '2. \u041d\u0414\u0421 \u043d\u0435 \u043e\u0431\u043b\u0430\u0433\u0430\u0435\u0442\u0441\u044f \u2014 \u043f\u0440\u0438\u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u043d\u0430\u043b\u043e\u0433 \u043d\u0430 \u043f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u0434\u043e\u0445\u043e\u0434 (\u041d\u041f\u0414).',
-      '3. \u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u0440\u0430\u0431\u043e\u0442\u044b, \u043d\u0435 \u0432\u043e\u0448\u0435\u0434\u0448\u0438\u0435 \u0432 \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0435\u0435 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435, \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u044e\u0442\u0441\u044f \u043d\u0430 \u043e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e\u0433\u043e \u043f\u0438\u0441\u044c\u043c\u0435\u043d\u043d\u043e\u0433\u043e \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u044f \u0421\u0442\u043e\u0440\u043e\u043d \u0438 \u043e\u043f\u043b\u0430\u0447\u0438\u0432\u0430\u044e\u0442\u0441\u044f \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e.',
+      '3. \u041e\u0431\u044a\u0451\u043c \u0440\u0430\u0431\u043e\u0442 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0451\u043d \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u043c \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435\u043c \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e. \u0415\u0441\u043b\u0438 \u0432 \u0445\u043e\u0434\u0435 \u0440\u0435\u043c\u043e\u043d\u0442\u0430 \u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a \u0440\u0435\u0448\u0438\u0442 \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0440\u0430\u0431\u043e\u0442\u044b, \u043d\u0435 \u0432\u043e\u0448\u0435\u0434\u0448\u0438\u0435 \u0432 \u044d\u0442\u043e\u0442 \u043f\u0435\u0440\u0435\u0447\u0435\u043d\u044c, \u043e\u043d\u0438 \u043e\u0444\u043e\u0440\u043c\u043b\u044f\u044e\u0442\u0441\u044f \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u043c \u0441\u043e\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435\u043c \u0441 \u0437\u0430\u0440\u0430\u043d\u0435\u0435 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u043e\u0439 \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c\u044e \u0438 \u0441\u0440\u043e\u043a\u043e\u043c. \u0411\u0435\u0437 \u0442\u0430\u043a\u043e\u0433\u043e \u0441\u043e\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u044f \u043d\u0438\u043a\u0430\u043a\u0438\u0435 \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u0441\u0443\u043c\u043c\u044b \u043d\u0435 \u043d\u0430\u0447\u0438\u0441\u043b\u044f\u044e\u0442\u0441\u044f.',
       '4. \u041f\u0440\u0438\u0451\u043c\u043a\u0430 \u0440\u0430\u0431\u043e\u0442 \u043e\u0444\u043e\u0440\u043c\u043b\u044f\u0435\u0442\u0441\u044f \u0430\u043a\u0442\u043e\u043c. \u041f\u0440\u0438 \u0443\u043a\u043b\u043e\u043d\u0435\u043d\u0438\u0438 \u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430 \u043e\u0442 \u043f\u0440\u0438\u0451\u043c\u043a\u0438 \u0432 \u0442\u0435\u0447\u0435\u043d\u0438\u0435 3 (\u0442\u0440\u0451\u0445) \u0440\u0430\u0431\u043e\u0447\u0438\u0445 \u0434\u043d\u0435\u0439 \u0441 \u043c\u043e\u043c\u0435\u043d\u0442\u0430 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f \u043e \u0433\u043e\u0442\u043e\u0432\u043d\u043e\u0441\u0442\u0438 \u0440\u0430\u0431\u043e\u0442\u044b \u0441\u0447\u0438\u0442\u0430\u044e\u0442\u0441\u044f \u043f\u0440\u0438\u043d\u044f\u0442\u044b\u043c\u0438 (\u0441\u0442. 720, 753 \u0413\u041a \u0420\u0424).',
       '5. \u0421\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u0438\u044f \u0421\u0442\u043e\u0440\u043e\u043d, \u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0447\u0435\u0440\u0435\u0437 \u043c\u0435\u0441\u0441\u0435\u043d\u0434\u0436\u0435\u0440\u044b \u0438\u043b\u0438 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u043d\u0443\u044e \u043f\u043e\u0447\u0442\u0443 \u0441 \u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0445 \u0421\u0442\u043e\u0440\u043e\u043d\u0430\u043c \u043a\u043e\u043d\u0442\u0430\u043a\u0442\u043e\u0432, \u043f\u0440\u0438\u0437\u043d\u0430\u044e\u0442\u0441\u044f \u043d\u0430\u0434\u043b\u0435\u0436\u0430\u0449\u0435\u0439 \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u043a\u043e\u0439 \u0438 \u0438\u043c\u0435\u044e\u0442 \u0441\u0438\u043b\u0443 \u0434\u043b\u044f \u0421\u0442\u043e\u0440\u043e\u043d.'
     ],
@@ -8459,7 +8472,14 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     // влезает, а doc.text её всё же переносит — тогда пункты наезжали друг
     // на друга, потому что y рос на одну строку вместо двух.
     var WRAP_W = (right - left) - 6;
-    var uslLines=D.usl.map(function(t){ return doc.splitTextToSize(t, WRAP_W); });
+    // MTFIX56: пункт о приёмке по акту — условие исполнения договора, в
+    // коммерческом предложении он лишний и настораживает. Оставляем его
+    // только в актах, остальные пункты перенумеровываем.
+    var _dt=''; try{ var _pd=ev('_pendingDoc'); _dt=(_pd&&_pd.type)||''; }catch(e){}
+    var _isAct=/^(avr|mact|predv|predvm)$/.test(_dt);
+    var _usl=D.usl.filter(function(t){ return _isAct || t.indexOf('4. ')!==0; })
+                  .map(function(t,i){ return t.replace(/^\d+\./, (i+1)+'.'); });
+    var uslLines=_usl.map(function(t){ return doc.splitTextToSize(t, WRAP_W); });
     var lineH=4.0, uslHeight=6;
     uslLines.forEach(function(w){ uslHeight += w.length*lineH + 1.6; });
     var footerTop=270, sigBlockH=26, gap=5;
