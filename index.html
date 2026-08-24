@@ -11318,3 +11318,71 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   });
 })();
 </script>
+
+<!-- MTFIX58: цены правились внутри объекта и там же оставались — общий прайс
+     не менялся, и каждый следующий объект начинался со старыми цифрами.
+     Кнопка переносит цены текущего объекта в прайс: он хранится в
+     localStorage под ключом gamz_pricebook_tpl_v1 и подхватывается при
+     каждой загрузке, поэтому правка становится общей. -->
+<script>
+(function(){
+  if(window.__MTFIX58) return; window.__MTFIX58 = true;
+  var LS='gamz_pricebook_tpl_v1';
+
+  function P(){ try{ return activeProject(); }catch(e){ return null; } }
+  function PB(){ try{ return getTemplate(); }catch(e){ return null; } }
+  function money(n){ try{ return Math.round(n).toLocaleString('ru-RU'); }catch(e){ return String(n); } }
+
+  window.pricesToTemplate=function(){
+    var p=P(), pb=PB();
+    if(!p){ try{ customAlert('Откройте объект'); }catch(e){} return; }
+    if(!pb || !pb.length){ try{ customAlert('Прайс недоступен'); }catch(e){} return; }
+    var diff=[];
+    (p.works||[]).forEach(function(w){
+      if(w.si==null || w.gi==null || w.wi==null) return;          // свои работы пропускаем
+      var sec=pb[w.si], g=sec&&sec.g&&sec.g[w.gi], it=g&&g.w&&g.w[w.wi];
+      if(!it) return;
+      var nm=Number(w.priceM)||0, nc=Number(w.priceC)||0;
+      if(Number(it.m)!==nm || Number(it.c)!==nc) diff.push({it:it, name:w.name, om:it.m, oc:it.c, m:nm, c:nc});
+    });
+    if(!diff.length){ try{ customAlert('Цены в объекте и в прайсе совпадают — переносить нечего.'); }catch(e){} return; }
+
+    var rows=diff.slice(0,12).map(function(d){
+      return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;border-top:1px solid #eef2f7">'
+        +'<span style="flex:1;color:#11305a">'+String(d.name).slice(0,44)+'</span>'
+        +'<span style="color:#9e9e9e;white-space:nowrap">'+money(d.oc)+' → </span>'
+        +'<b style="color:#21A038;white-space:nowrap">'+money(d.c)+' ₽</b></div>';
+    }).join('');
+    showModal('<div class="modal-title">Перенести цены в прайс</div>'
+      +'<div class="modal-text">Из объекта «'+String(p.name||'').slice(0,40)+'» в общий прайс уйдут '
+      +'<b>'+diff.length+'</b> позиций. Новые объекты будут считаться по этим ценам.</div>'
+      +'<div style="max-height:200px;overflow:auto;margin:8px 0">'+rows
+      +(diff.length>12?('<div style="font-size:11px;color:#9e9e9e;padding-top:6px">…и ещё '+(diff.length-12)+'</div>'):'')+'</div>'
+      +'<div class="modal-buttons"><button class="modal-btn cancel" onclick="hideModal()">Отмена</button>'
+      +'<button class="modal-btn ok" onclick="pricesToTemplateApply()">Перенести</button></div>');
+    window.__mtf58diff=diff;
+  };
+
+  window.pricesToTemplateApply=function(){
+    var diff=window.__mtf58diff||[], pb=PB();
+    diff.forEach(function(d){ d.it.m=d.m; d.it.c=d.c; });
+    try{ localStorage.setItem(LS, JSON.stringify(pb)); }catch(e){}
+    try{ if(window.GAMZ2 && window.GAMZ2.savePricebook) window.GAMZ2.savePricebook(); }catch(e){}
+    window.__mtf58diff=null;
+    hideModal();
+    try{ if(typeof renderProject==='function') renderProject(); }catch(e){}
+    try{ customAlert('Перенесено позиций: '+diff.length+'. Прайс обновлён — новые объекты пойдут по этим ценам.'); }catch(e){}
+  };
+
+  function injectBtn(){
+    var mini=document.querySelector('#projectScreen .mini-tools');
+    if(!mini || document.getElementById('mtf58Btn')) return;
+    var b=document.createElement('button');
+    b.id='mtf58Btn'; b.className='mini-tool'; b.textContent='💰 Цены → в прайс';
+    b.onclick=function(){ pricesToTemplate(); };
+    mini.appendChild(b);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',injectBtn); else injectBtn();
+  setInterval(injectBtn, 1500);
+})();
+</script>
