@@ -4118,12 +4118,14 @@ function drawBrandHeader(doc, PW, o){
   doc.text(o.title, M, y+3);
   // sum-box справа (опц.)
   if(o.sumBox){
+    // MTFIX55: сумма в предложении была красной — цвет тревоги на документе,
+    // который заказчик открывает первым. Переведено на спокойный зелёный.
     const boxW=70, boxX=RIGHT-boxW, boxY=y-3, boxH=(o.sumBox.discount>0)?20:10;
-    doc.setDrawColor(255,205,210); doc.setFillColor(255,250,250);
+    doc.setDrawColor(165,214,167); doc.setFillColor(242,250,244);
     doc.roundedRect(boxX,boxY,boxW,boxH,1.5,1.5,'FD');
     doc.setFontSize(9); doc.setFont('DV','normal'); doc.setTextColor(117,117,117);
     doc.text(o.sumBox.label, boxX+3, boxY+5);
-    doc.setFont('DV','bold'); doc.setTextColor(198,40,40); doc.setFontSize(11);
+    doc.setFont('DV','bold'); doc.setTextColor(33,160,56); doc.setFontSize(11);
     doc.text(o.sumBox.totalAfterStr, boxX+boxW-3, boxY+5, {align:'right'});
     if(o.sumBox.discount>0){
       doc.setFont('DV','normal'); doc.setFontSize(8); doc.setTextColor(117,117,117);
@@ -4263,7 +4265,7 @@ function showDocPreview(proj, type, data){
       </table>
       <div style="border-top:2px solid #424242;margin-top:8px;padding-top:8px;text-align:right;">
         ${discLine}
-        <div style="font-size:15px;font-weight:700;">${totalLabel}: <span style="color:#C62828;">${mf(data.totalAfter)}</span></div>
+        <div style="font-size:15px;font-weight:700;">${totalLabel}: <span style="color:#21A038;">${mf(data.totalAfter)}</span></div>
       </div>
     </div>
     <div class="modal-buttons">
@@ -4400,7 +4402,7 @@ function downloadPdf(proj, type, data){
     doc.setDrawColor(66,66,66); doc.setLineWidth(0.4); doc.line(M,y,tblRight,y); y+=6;
     doc.setFont('DV','bold'); doc.setFontSize(11); doc.setTextColor(33,33,33);
     doc.text(data.isMaster?'ИТОГО МАСТЕРУ:':'ИТОГО К ОПЛАТЕ:', M, y);
-    doc.setTextColor(198,40,40); doc.text(moneyP(data.totalAfter), tblRight, y, {align:'right'});
+    doc.setTextColor(33,160,56); doc.text(moneyP(data.totalAfter), tblRight, y, {align:'right'});
 
     // Footer
     y+=10;
@@ -8389,6 +8391,10 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
     var works=(p.works||[]).filter(function(w){ return w.selected && (Number(w.qty)||0)>0; });
     var order=[], groups={};
     works.forEach(function(w){ var si=w.si; if(!(si in groups)){ groups[si]=[]; order.push(si); } groups[si].push(w); });
+    // MTFIX55: разделы шли в порядке появления работ в proj.works — стоило
+    // переставить галочку, и раздел уезжал в конец документа. Сортируем по
+    // номеру раздела в прайсе: он и есть технологическая последовательность.
+    order.sort(function(a,b){ return a-b; });
     var rows=[], total=0;
     order.forEach(function(si){
       rows.push({type:"section", title:secTitle(si)});
