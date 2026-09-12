@@ -11562,55 +11562,56 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   function apply(){
     var pb; try{ pb=getTemplate(); }catch(e){ return false; }
     if(!pb || !pb.length) return false;
-    var added=0, seen=0;
-    BLOCKS.forEach(function(blk){
-      pb.forEach(function(sec){
-        (sec.g||[]).forEach(function(g){
-          var ws=g.w||[];
-          var hasAnchor=ws.some(function(w){ return String(w.n).trim()===blk.a; });
-          if(!hasAnchor) return;
-          seen++;
-          blk.w.forEach(function(it){
-            var exists=ws.some(function(w){ return String(w.n).trim()===it.n; });
-            if(!exists){ ws.push({ n:it.n, u:it.u, m:it.m, c:it.c }); added++; }
-          });
-          g.w=ws;
-        });
-      });
-    });
-    var removed=0;
-    DEDUPE.forEach(function(d){
-      pb.forEach(function(sec){
-        (sec.g||[]).forEach(function(g){
-          var ws=g.w||[];
-          if(!ws.length) return;
-          var hasOld=ws.some(function(w){ return String(w.n).trim()===d.old; });
-          if(!hasOld) return;
-          // безопасно снимаем только последнюю строку группы, ключи ниже не сдвигаются
-          if(String(ws[ws.length-1].n).trim()===d.neu){ ws.pop(); removed++; }
-        });
-      });
-    });
-    var priced=0;
-    PRICES.forEach(function(r){
-      pb.forEach(function(sec){
-        (sec.g||[]).forEach(function(g){
-          (g.w||[]).forEach(function(w){
-            if(String(w.n).trim()===r.n && (Number(w.m)!==r.m || Number(w.c)!==r.c)){ w.m=r.m; w.c=r.c; priced++; }
-          });
-        });
-      });
-    });
-    var renamed=0;
+    var RMAP={}; RENAMES.forEach(function(r){ RMAP[r.f]=r.t; });
+    var added=0, renamed=0, priced=0, removed=0, seen=0;
+
+    // 1. приводим названия к актуальным
     RENAMES.forEach(function(r){
-      pb.forEach(function(sec){
-        (sec.g||[]).forEach(function(g){
-          (g.w||[]).forEach(function(w){
-            if(String(w.n).trim()===r.f){ w.n=r.t; renamed++; }
-          });
-        });
-      });
+      pb.forEach(function(sec){ (sec.g||[]).forEach(function(g){ (g.w||[]).forEach(function(w){
+        if(String(w.n).trim()===r.f){ w.n=r.t; renamed++; }
+      }); }); });
     });
+
+    // 2. снимаем дубли, накопленные прошлыми версиями патча.
+    //    Трогаем только хвост группы, ключи ниже сдвинуться не могут.
+    DEDUPE.forEach(function(d){
+      pb.forEach(function(sec){ (sec.g||[]).forEach(function(g){
+        var ws=g.w||[];
+        while(ws.length>1 && String(ws[ws.length-1].n).trim()===d.neu){
+          var earlier=ws.slice(0, ws.length-1).some(function(w){
+            var n=String(w.n).trim(); return n===d.neu || n===d.old;
+          });
+          if(!earlier) break;
+          ws.pop(); removed++;
+        }
+      }); });
+    });
+
+    // 3. дописываем недостающее. Позиция считается существующей и под старым
+    //    названием, и под тем, в которое она переименована.
+    BLOCKS.forEach(function(blk){
+      var anchorName = RMAP[blk.a] || blk.a;
+      pb.forEach(function(sec){ (sec.g||[]).forEach(function(g){
+        var ws=g.w||[];
+        var hasAnchor=ws.some(function(w){ var n=String(w.n).trim(); return n===blk.a || n===anchorName; });
+        if(!hasAnchor) return;
+        seen++;
+        blk.w.forEach(function(it){
+          var alt = RMAP[it.n] || it.n;
+          var exists=ws.some(function(w){ var n=String(w.n).trim(); return n===it.n || n===alt; });
+          if(!exists){ ws.push({ n:alt, u:it.u, m:it.m, c:it.c }); added++; }
+        });
+        g.w=ws;
+      }); });
+    });
+
+    // 4. правим цены существующих позиций
+    PRICES.forEach(function(r){
+      pb.forEach(function(sec){ (sec.g||[]).forEach(function(g){ (g.w||[]).forEach(function(w){
+        if(String(w.n).trim()===r.n && (Number(w.m)!==r.m || Number(w.c)!==r.c)){ w.m=r.m; w.c=r.c; priced++; }
+      }); }); });
+    });
+
     if(!seen) return false;
     if(added||renamed||priced||removed){
       try{ if(window.GAMZTPL && window.GAMZTPL._persist) window.GAMZTPL._persist(); }catch(e){}
