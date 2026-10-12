@@ -11782,3 +11782,36 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   var t=0, iv=setInterval(function(){ if(apply() || ++t>120) clearInterval(iv); }, 1000);
 })();
 </script>
+<script>
+(function(){
+  if(window.__MTFIX65) return; window.__MTFIX65 = true;
+  // 12.10.2026: правка цен прайса (16 позиций), пакет tools/pricebook/changes. Условная: по индексу si/gi/wi,
+  // только если название и прежняя цена на месте. Ждёт загрузки сохранённого прайса (память == localStorage).
+  var LS='gamz_pricebook_tpl_v1', STAMP='mtf65_prices_v1', T0=Date.now();
+  var E=[[6,0,3,"Демонтаж трассировки (газобетон, пенобетон, пазогребень)",150,300,150,320],[7,0,2,"Монтаж перегородок, газоблок D500 75мм",700,1400,700,1450],[10,1,2,"Грунтовка стен в 1 цикл",50,100,50,190],[11,0,1,"Устройство межкомнатных перегородок из ГКЛВ в 2 слоя по каркасу",0,0,1800,3500],[17,1,3,"Монтаж электровыводов под осветительные приборы (с маркировкой)",450,950,450,1270],[17,1,4,"Устройство гнезда подрозетника в бетоне",400,800,400,1050],[17,1,5,"Устройство гнезда подрозетника в газоблоке",300,600,300,1050],[20,0,1,"Грунтовка в 1 цикл",50,100,50,210],[20,0,5,"Мокрая стяжка пола на средний слой до 70мм с фиброволокном",500,1200,500,1460],[22,0,0,"Устройство потолка из ГКЛ в 2 слоя в один уровень на каркас (м²)",2000,3250,2000,3320],[26,0,0,"Изготовление душевого поддона (комплекс черновой) пескобетон М300",5500,11000,5500,12500],[26,0,2,"Устройство ГКЛВ коробов под инсталляцию (прямой) до 900×500×1200мм",2750,5500,2750,7200],[26,0,13,"Гидроизоляция пола, стен мастикой + лента по углам",300,650,300,750],[26,1,4,"Сверление отверстия под подрозетники, водорозетки, канализации",400,800,400,1230],[28,0,3,"Грунтовка стен в 1 цикл перед штукатуркой",50,100,50,190],[36,0,12,"Монтаж бра",1200,2400,1200,2700]]; // [si, gi, wi, название, было м, было к, стало м, стало к]
+  function ready(){
+    try{
+      var s=localStorage.getItem(LS);
+      if(!s) return (Date.now()-T0)>20000;
+      return s===JSON.stringify(getTemplate());
+    }catch(e){ return false; }
+  }
+  function apply(){
+    var pb; try{ pb=getTemplate(); }catch(e){ return false; }
+    if(!pb || !pb.length || !ready()) return false;
+    var done=0;
+    E.forEach(function(r){
+      var g=((pb[r[0]]||{}).g||[])[r[1]], w=g&&(g.w||[])[r[2]];
+      if(!w || String(w.n).trim()!==r[3]) return;
+      if(Number(w.m)===r[4] && Number(w.c)===r[5]){ w.m=r[6]; w.c=r[7]; done++; }
+    });
+    if(done){
+      try{ if(window.GAMZTPL && window.GAMZTPL._persist) window.GAMZTPL._persist(); }catch(e){}
+      try{ if(typeof renderProject==='function' && activeProject()) renderProject(); }catch(e){}
+      try{ localStorage.setItem(STAMP, new Date().toISOString().slice(0,10)+':'+done); }catch(e){}
+    }
+    return true;
+  }
+  var t=0, iv=setInterval(function(){ if(apply() || ++t>120) clearInterval(iv); }, 1000);
+})();
+</script>
