@@ -11815,3 +11815,33 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   var t=0, iv=setInterval(function(){ if(apply() || ++t>120) clearInterval(iv); }, 1000);
 })();
 </script>
+<script>
+(function(){
+  if(window.__MTFIX66) return; window.__MTFIX66 = true;
+  // 66: новые позиции прайса и правки цен. Условно: цена — если стоит прежняя; добавление — в конец подэтапа (якорь — первая позиция),
+  // если позиции с таким названием нет и индекс совпадает с ключом агента. Ждёт загрузки сохранённого прайса (память == localStorage).
+  var LS='gamz_pricebook_tpl_v1', STAMP='mtf66_v1', T0=Date.now();
+  var E=[[11, 0, 0, "Устройство межкомнатных перегородок из ГКЛВ в 1 слой по каркасу", 2200, 4400, 1800, 3600], [11, 0, 1, "Устройство межкомнатных перегородок из ГКЛВ в 2 слоя по каркасу", 1800, 3500, 2200, 4500]]; // [si, gi, wi, название, было м, было к, стало м, стало к]
+  var A=[{"si": 28, "gi": 3, "wi": 14, "a": "Оклеивание стен обоями без рисунка", "n": "Покраска потолков в/д краской валиком в 2 слоя (потолок +20 %)", "u": "м²", "m": 570, "c": 1140}, {"si": 31, "gi": 0, "wi": 1, "a": "Заполнить позиции по проекту", "n": "Микроцемент на стены: грунт, 2 слоя базы с сеткой, 2 слоя финиша, защитный лак", "u": "м²", "m": 2000, "c": 4000}, {"si": 31, "gi": 0, "wi": 2, "a": "Заполнить позиции по проекту", "n": "Микроцемент на стены с прямым попаданием воды (душ, ванна): грунт, база с сеткой, финиш, 2 слоя лака", "u": "м²", "m": 2000, "c": 5600}, {"si": 31, "gi": 0, "wi": 3, "a": "Заполнить позиции по проекту", "n": "Микроцемент на потолок (потолок +20 %)", "u": "м²", "m": 2000, "c": 4800}, {"si": 31, "gi": 0, "wi": 4, "a": "Заполнить позиции по проекту", "n": "Декоративное покрытие на акриловой основе (Lanors и аналоги) на стены по подготовленному основанию", "u": "м²", "m": 1500, "c": 3000}, {"si": 31, "gi": 0, "wi": 5, "a": "Заполнить позиции по проекту", "n": "Декоративное покрытие на акриловой основе (Lanors и аналоги) на потолок (потолок +20 %)", "u": "м²", "m": 1800, "c": 3600}, {"si": 33, "gi": 3, "wi": 5, "a": "Укладка инженерной доски на клеящий состав", "n": "Микроцемент на пол: грунт, 2 слоя базы с сеткой, 2 слоя финиша, полиуретановый лак", "u": "м²", "m": 2000, "c": 5000}, {"si": 33, "gi": 3, "wi": 6, "a": "Укладка инженерной доски на клеящий состав", "n": "Укладка паркетной доски «французская ёлка» на клеящий состав", "u": "м²", "m": 2500, "c": 5000}];
+  function ready(){ try{ var s=localStorage.getItem(LS); if(!s) return (Date.now()-T0)>20000; return s===JSON.stringify(getTemplate()); }catch(e){ return false; } }
+  function apply(){
+    var pb; try{ pb=getTemplate(); }catch(e){ return false; }
+    if(!pb || !pb.length || !ready()) return false;
+    var p=0, ad=0;
+    E.forEach(function(r){ var g=((pb[r[0]]||{}).g||[])[r[1]], w=g&&(g.w||[])[r[2]];
+      if(w && String(w.n).trim()===r[3] && Number(w.m)===r[4] && Number(w.c)===r[5]){ w.m=r[6]; w.c=r[7]; p++; } });
+    A.forEach(function(r){ var g=((pb[r.si]||{}).g||[])[r.gi]; if(!g) return; var ws=g.w||[];
+      if(!ws.length || String(ws[0].n).trim()!==r.a) return;
+      if(ws.some(function(w){ return String(w.n).trim()===r.n; })) return;
+      if(ws.length!==r.wi) return;
+      ws.push({n:r.n, u:r.u, m:r.m, c:r.c}); g.w=ws; ad++; });
+    if(p||ad){
+      try{ if(window.GAMZTPL && window.GAMZTPL._persist) window.GAMZTPL._persist(); }catch(e){}
+      try{ if(typeof renderProject==='function' && activeProject()) renderProject(); }catch(e){}
+      try{ localStorage.setItem(STAMP, new Date().toISOString().slice(0,10)+':'+p+'p+'+ad+'a'); }catch(e){}
+    }
+    return true;
+  }
+  var t=0, iv=setInterval(function(){ if(apply() || ++t>120) clearInterval(iv); }, 1000);
+})();
+</script>
