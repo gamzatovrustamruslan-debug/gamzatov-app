@@ -11845,3 +11845,34 @@ setInterval(function(){ try{ if(document.getElementById('mtf9Acc')&&!document.ge
   var t=0, iv=setInterval(function(){ if(apply() || ++t>120) clearInterval(iv); }, 1000);
 })();
 </script>
+<script>
+(function(){
+  if(window.__MTFIX67) return; window.__MTFIX67 = true;
+  // 67: цены штукатурки B10 (владелец 16.10, «да» на выкладку 17.10) + газоблок в нишах 7_0_9; 11_0_6 не входит (не утверждён к выкладке).
+  // новые позиции прайса и правки цен. Условно: цена — если стоит прежняя; добавление — в конец подэтапа (якорь — первая позиция),
+  // если позиции с таким названием нет и индекс совпадает с ключом агента. Ждёт загрузки сохранённого прайса (память == localStorage).
+  var LS='gamz_pricebook_tpl_v1', STAMP='mtf67_v1', T0=Date.now();
+  var E=[[10, 1, 5, "Механизированная штукатурка стен в мокрых зонах (влагостойкая цементная)", 900, 1800, 900, 2250], [10, 1, 6, "Механизированная штукатурка стен «Улучшенная» (гипс до 20мм)", 800, 1600, 800, 1950], [10, 1, 7, "Механизированная штукатурка откосов «Улучшенная» (гипс до 20мм)", 800, 1600, 800, 1950], [10, 1, 10, "Ручная штукатурка стен в мокрых зонах (влагостойкая цементная)", 900, 1800, 900, 2250], [10, 1, 11, "Ручная штукатурка стен «Улучшенная» (гипс до 20мм)", 800, 1600, 800, 1950], [10, 1, 12, "Ручная штукатурка откосов «Улучшенная» (гипс до 20мм)", 800, 1600, 800, 1950]]; // [si, gi, wi, название, было м, было к, стало м, стало к]
+  var A=[{"si": 7, "gi": 0, "wi": 9, "a": "Монтаж перегородок, газоблок к стене D500 75мм", "n": "Монтаж газоблока D500 50мм в нишах под радиаторы", "u": "м²", "m": 1580, "c": 3300}];
+  function ready(){ try{ var s=localStorage.getItem(LS); if(!s) return (Date.now()-T0)>20000; return s===JSON.stringify(getTemplate()); }catch(e){ return false; } }
+  function apply(){
+    var pb; try{ pb=getTemplate(); }catch(e){ return false; }
+    if(!pb || !pb.length || !ready()) return false;
+    var p=0, ad=0;
+    E.forEach(function(r){ var g=((pb[r[0]]||{}).g||[])[r[1]], w=g&&(g.w||[])[r[2]];
+      if(w && String(w.n).trim()===r[3] && Number(w.m)===r[4] && Number(w.c)===r[5]){ w.m=r[6]; w.c=r[7]; p++; } });
+    A.forEach(function(r){ var g=((pb[r.si]||{}).g||[])[r.gi]; if(!g) return; var ws=g.w||[];
+      if(!ws.length || String(ws[0].n).trim()!==r.a) return;
+      if(ws.some(function(w){ return String(w.n).trim()===r.n; })) return;
+      if(ws.length!==r.wi) return;
+      ws.push({n:r.n, u:r.u, m:r.m, c:r.c}); g.w=ws; ad++; });
+    if(p||ad){
+      try{ if(window.GAMZTPL && window.GAMZTPL._persist) window.GAMZTPL._persist(); }catch(e){}
+      try{ if(typeof renderProject==='function' && activeProject()) renderProject(); }catch(e){}
+      try{ localStorage.setItem(STAMP, new Date().toISOString().slice(0,10)+':'+p+'p+'+ad+'a'); }catch(e){}
+    }
+    return true;
+  }
+  var t=0, iv=setInterval(function(){ if(apply() || ++t>120) clearInterval(iv); }, 1000);
+})();
+</script>
